@@ -1,4 +1,4 @@
-# AI Restaurant Assitant
+# AI Restaurant Assistant
 
 A modern LLM-powered chat assistant for restaurant discovery. Built with React, TypeScript, and FastAPI.
 
