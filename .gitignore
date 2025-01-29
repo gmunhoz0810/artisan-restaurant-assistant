@@ -32,3 +32,6 @@ yarn-error.log*
 # Build
 build/
 dist/
+
+extract_text.py
+project_structure.txt
