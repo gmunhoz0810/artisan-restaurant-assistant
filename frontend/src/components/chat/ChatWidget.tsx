@@ -118,7 +118,7 @@ const ChatWidget = () => {
             </div>
           ) : messages.length === 0 ? (
             <div className="text-center text-gray-500 mt-4">
-              Ask me anything about restaurants
+              New Conversation...
             </div>
           ) : (
             messages.map((message) => (

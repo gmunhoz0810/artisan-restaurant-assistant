@@ -39,7 +39,20 @@ async def get_conversations(
         message_count = db.query(MessageModel).filter(MessageModel.conversation_id == conv.id).count()
         print(f"  Message count: {message_count}")
     
-    return conversations
+    # Explicitly include is_new in the response for each conversation
+    return [
+        {
+            "id": conv.id,
+            "title": conv.title,
+            "created_at": conv.created_at,
+            "updated_at": conv.updated_at,
+            "is_active": conv.is_active,
+            "is_new": conv.is_new,  # Explicitly include is_new
+            "user_id": conv.user_id,
+            "messages": conv.messages
+        }
+        for conv in conversations
+    ]
 
 @router.post("/new-conversation")
 async def create_new_conversation(
@@ -81,8 +94,8 @@ async def create_new_conversation(
         return {
             "id": new_conversation.id,
             "title": new_conversation.title,
-            "is_new": True,  # Explicitly include is_new
-            "is_active": True,
+            "is_new": new_conversation.is_new,  # Explicitly include is_new
+            "is_active": new_conversation.is_active,
             "created_at": new_conversation.created_at.isoformat(),
             "messages": []
         }
@@ -125,10 +138,50 @@ async def activate_conversation(
         conversation.is_active = True
         db.commit()
         
-        return {"status": "success"}
+        return {
+            "status": "success",
+            "conversation": {
+                "id": conversation.id,
+                "is_new": conversation.is_new,  # Include is_new in response
+                "is_active": True
+            }
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/conversations/{conversation_id}", response_model=ConversationWithMessages)
+async def get_conversation(
+    conversation_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get a specific conversation and its messages"""
+    conversation = (
+        db.query(ConversationModel)
+        .filter(
+            ConversationModel.id == conversation_id,
+            ConversationModel.user_id == current_user.id
+        )
+        .first()
+    )
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    print(f"\n=== GET CONVERSATION {conversation_id} ===")
+    print(f"State: is_new={conversation.is_new}, title='{conversation.title}'")
+    
+    # Return with explicit is_new flag
+    return {
+        "id": conversation.id,
+        "title": conversation.title,
+        "created_at": conversation.created_at,
+        "updated_at": conversation.updated_at,
+        "is_active": conversation.is_active,
+        "is_new": conversation.is_new,  # Explicitly include is_new
+        "user_id": conversation.user_id,
+        "messages": conversation.messages
+    }
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationWithMessages)
 async def get_conversation(

@@ -96,7 +96,7 @@ const Header = ({ onMinimize, onClose, onNewConversation, isSidebarExpanded }: H
                 <div className="w-12 h-12 rounded-full bg-purple-100 mb-2 flex items-center justify-center">
                     <span className="text-2xl font-semibold text-purple-600">A</span>
                 </div>
-                <h1 className="text-lg font-semibold">Hey 👋, I'm Ava</h1>
+                <h1 className="text-lg font-semibold">Hey 👋, I'm Chef Ava</h1>
                 <p className="text-sm text-gray-500">Ask me anything about restaurants</p>
             </div>
         </div>

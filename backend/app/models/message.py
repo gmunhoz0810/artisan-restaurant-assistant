@@ -50,6 +50,7 @@ class Conversation(ConversationBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     is_active: bool
+    is_new: bool  # Explicitly include is_new
     user_id: str
 
     class Config:
