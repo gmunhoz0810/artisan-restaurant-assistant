@@ -1,0 +1,16 @@
+feat: enhance conversation management and fix conversation persistence [STABLE v1.0]
+
+- Add sidebar for browsing and managing multiple conversations
+- Switch to OpenAI Assistants API for better context and thread handling
+- Create separate threads per conversation for isolated chat contexts
+- Add conversation state validation to prevent empty conversation spam
+- Fix AI message retrieval when switching between conversations
+
+This commit represents a stable version with all basic core chat functionality.
+Key features:
+- Multi-conversation support with browsable history sidebar
+- Ability to switch between active conversations
+- Proper message persistence across conversations
+- Streaming responses working correctly
+- UI state management and restrictions
+- OpenAI thread management per conversation

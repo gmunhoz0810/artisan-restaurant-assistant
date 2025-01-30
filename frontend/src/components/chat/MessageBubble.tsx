@@ -9,7 +9,7 @@ interface MessageBubbleProps {
   onDelete?: () => void;
 }
 
-const MessageBubble = ({
+export const MessageBubble = ({
   content,
   sender,
   timestamp,

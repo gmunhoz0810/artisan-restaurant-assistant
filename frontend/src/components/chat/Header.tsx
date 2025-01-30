@@ -2,10 +2,10 @@
 interface HeaderProps {
     onMinimize: () => void;
     onClose: () => void;
-    onClearChat: () => void;
+    onNewConversation?: () => void;
   }
   
-  const Header = ({ onMinimize, onClose, onClearChat }: HeaderProps) => {
+  const Header = ({ onMinimize, onClose, onNewConversation }: HeaderProps) => {
     return (
       <div className="relative p-4 border-b">
         {/* Window controls */}
@@ -13,26 +13,32 @@ interface HeaderProps {
           <button
             onClick={onMinimize}
             className="w-3 h-3 rounded-full bg-yellow-400 hover:bg-yellow-500"
+            aria-label="Minimize"
           />
           <button
             className="w-3 h-3 rounded-full bg-gray-300"
+            aria-label="Disabled button"
+            disabled
           />
         </div>
   
-        {/* Clear chat button */}
-        <div className="absolute right-12 top-1/2 -translate-y-1/2">
-          <button
-            onClick={onClearChat}
-            className="text-gray-400 hover:text-gray-600 text-sm"
-          >
-            Clear Chat
-          </button>
-        </div>
+        {/* New Chat button */}
+        {onNewConversation && (
+          <div className="absolute right-12 top-1/2 -translate-y-1/2">
+            <button
+              onClick={onNewConversation}
+              className="text-sm font-medium text-purple-600 hover:text-purple-700"
+            >
+              New Chat
+            </button>
+          </div>
+        )}
   
         {/* Close button */}
         <button
           onClick={onClose}
           className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          aria-label="Close"
         >
           ×
         </button>
