@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func, Integer, cast  # Added Integer import here
+from sqlalchemy import func, Integer, cast
 from typing import List, Optional
 from ..models.message import (
     Message as MessageSchema,
@@ -10,9 +10,10 @@ from ..models.message import (
     ConversationCreate,
     ConversationWithMessages
 )
-from ..models.database_models import Message as MessageModel, Conversation as ConversationModel
+from ..models.database_models import Message as MessageModel, Conversation as ConversationModel, User as UserModel
 from ..core.database import get_db, SessionLocal
 from ..services.chat_service import ChatService
+from ..auth.oauth import get_current_user
 
 import json
 
@@ -20,42 +21,48 @@ router = APIRouter()
 chat_service = ChatService()
 
 @router.get("/conversations", response_model=List[ConversationWithMessages])
-async def get_conversations(db: Session = Depends(get_db)):
-    """Get all conversations"""
+async def get_conversations(
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all conversations for current user"""
     return (
         db.query(ConversationModel)
+        .filter(ConversationModel.user_id == current_user.id)
         .order_by(ConversationModel.created_at.desc())
         .all()
     )
 
 @router.post("/new-conversation")
 async def create_new_conversation(
+    current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Create a new conversation"""
     try:
-        # Start transaction
-        db.begin()
-
-        # Set all conversations to inactive
+        # Set all user's conversations to inactive
         db.query(ConversationModel)\
-          .filter(ConversationModel.is_active == True)\
+          .filter(
+              ConversationModel.user_id == current_user.id,
+              ConversationModel.is_active == True
+          )\
           .update({ConversationModel.is_active: False})
 
-        # Get next conversation number safely using proper casting
+        # Get next conversation number for this user
         max_number = db.query(
             func.max(
                 cast(
-                    func.substr(ConversationModel.title, 13), 
+                    func.substr(ConversationModel.title, 13),
                     Integer
                 )
             )
-        ).scalar() or 0
+        ).filter(ConversationModel.user_id == current_user.id).scalar() or 0
 
         # Create new conversation
         new_conversation = ConversationModel(
             title=f"Conversation {max_number + 1}",
-            is_active=True
+            is_active=True,
+            user_id=current_user.id
         )
         db.add(new_conversation)
         db.commit()
@@ -71,26 +78,37 @@ async def create_new_conversation(
         db.rollback()
         print(f"Error creating conversation: {str(e)}")
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail=f"Failed to create conversation: {str(e)}"
         )
 
 @router.post("/conversations/{conversation_id}/activate")
-async def activate_conversation(conversation_id: int, db: Session = Depends(get_db)):
+async def activate_conversation(
+    conversation_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Set a conversation as active and deactivate others"""
     try:
-        # Deactivate all conversations
-        db.query(ConversationModel)\
-          .filter(ConversationModel.is_active == True)\
-          .update({ConversationModel.is_active: False})
-        
-        # Activate the selected conversation
+        # Verify conversation belongs to user
         conversation = db.query(ConversationModel)\
-                        .filter(ConversationModel.id == conversation_id)\
+                        .filter(
+                            ConversationModel.id == conversation_id,
+                            ConversationModel.user_id == current_user.id
+                        )\
                         .first()
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
+
+        # Deactivate all user's conversations
+        db.query(ConversationModel)\
+          .filter(
+              ConversationModel.user_id == current_user.id,
+              ConversationModel.is_active == True
+          )\
+          .update({ConversationModel.is_active: False})
         
+        # Activate the selected conversation
         conversation.is_active = True
         db.commit()
         
@@ -100,11 +118,18 @@ async def activate_conversation(conversation_id: int, db: Session = Depends(get_
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationWithMessages)
-async def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
+async def get_conversation(
+    conversation_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get a specific conversation and its messages"""
     conversation = (
         db.query(ConversationModel)
-        .filter(ConversationModel.id == conversation_id)
+        .filter(
+            ConversationModel.id == conversation_id,
+            ConversationModel.user_id == current_user.id
+        )
         .first()
     )
     if not conversation:
@@ -112,11 +137,18 @@ async def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
     return conversation
 
 @router.delete("/conversations/{conversation_id}")
-async def delete_conversation(conversation_id: int, db: Session = Depends(get_db)):
+async def delete_conversation(
+    conversation_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Delete a conversation and all its messages"""
     conversation = (
         db.query(ConversationModel)
-        .filter(ConversationModel.id == conversation_id)
+        .filter(
+            ConversationModel.id == conversation_id,
+            ConversationModel.user_id == current_user.id
+        )
         .first()
     )
     if not conversation:
@@ -127,11 +159,17 @@ async def delete_conversation(conversation_id: int, db: Session = Depends(get_db
     return {"status": "success"}
 
 @router.get("/", response_model=List[MessageSchema])
-async def get_messages(db: Session = Depends(get_db)):
+async def get_messages(
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get messages for the active conversation"""
     conversation = (
         db.query(ConversationModel)
-        .filter(ConversationModel.is_active == True)
+        .filter(
+            ConversationModel.user_id == current_user.id,
+            ConversationModel.is_active == True
+        )
         .first()
     )
     
@@ -139,7 +177,8 @@ async def get_messages(db: Session = Depends(get_db)):
         # Create initial conversation if none exists
         conversation = ConversationModel(
             title="Conversation 1",
-            is_active=True
+            is_active=True,
+            user_id=current_user.id
         )
         db.add(conversation)
         db.commit()
@@ -154,11 +193,21 @@ async def get_messages(db: Session = Depends(get_db)):
     return messages
 
 @router.post("/stream")
-async def create_streaming_message(message: MessageCreate, db: Session = Depends(get_db)):
+async def create_streaming_message(
+    message: MessageCreate,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     try:
-        # Get conversation
+        # Verify conversation belongs to user
         with SessionLocal() as temp_db:
-            conversation = temp_db.query(ConversationModel).filter_by(id=message.conversation_id).first()
+            conversation = temp_db.query(ConversationModel)\
+                .filter(
+                    ConversationModel.id == message.conversation_id,
+                    ConversationModel.user_id == current_user.id
+                )\
+                .first()
+                
             if not conversation:
                 raise HTTPException(status_code=404, detail="Conversation not found")
             
@@ -237,9 +286,22 @@ async def create_streaming_message(message: MessageCreate, db: Session = Depends
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{message_id}", response_model=MessageSchema)
-async def update_message(message_id: int, message: MessageUpdate, db: Session = Depends(get_db)):
+async def update_message(
+    message_id: int,
+    message: MessageUpdate,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Update a message"""
-    db_message = db.query(MessageModel).filter(MessageModel.id == message_id).first()
+    # First get the message and verify it belongs to the user
+    db_message = db.query(MessageModel)\
+        .join(ConversationModel)\
+        .filter(
+            MessageModel.id == message_id,
+            ConversationModel.user_id == current_user.id
+        )\
+        .first()
+
     if db_message is None:
         raise HTTPException(status_code=404, detail="Message not found")
     if db_message.sender != "user":
@@ -252,9 +314,21 @@ async def update_message(message_id: int, message: MessageUpdate, db: Session = 
     return db_message
 
 @router.delete("/{message_id}")
-async def delete_message(message_id: int, db: Session = Depends(get_db)):
+async def delete_message(
+    message_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Delete a message"""
-    db_message = db.query(MessageModel).filter(MessageModel.id == message_id).first()
+    # First get the message and verify it belongs to the user
+    db_message = db.query(MessageModel)\
+        .join(ConversationModel)\
+        .filter(
+            MessageModel.id == message_id,
+            ConversationModel.user_id == current_user.id
+        )\
+        .first()
+
     if db_message is None:
         raise HTTPException(status_code=404, detail="Message not found")
     if db_message.sender != "user":

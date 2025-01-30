@@ -3,6 +3,16 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..core.database import Base
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True)  # Google User ID
+    email = Column(String, unique=True)
+    name = Column(String)
+    picture = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    conversations = relationship("Conversation", back_populates="user")
+
 class Conversation(Base):
     __tablename__ = "conversations"
 
@@ -12,7 +22,9 @@ class Conversation(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     is_active = Column(Boolean, default=True)
     thread_id = Column(String, unique=True, nullable=True)  # OpenAI thread ID
+    user_id = Column(String, ForeignKey("users.id"))  # Add this line
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+    user = relationship("User", back_populates="conversations")  # Add this line
 
 class Message(Base):
     __tablename__ = "messages"

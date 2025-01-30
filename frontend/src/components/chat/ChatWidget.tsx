@@ -47,7 +47,7 @@ const ChatWidget = () => {
   if (isMinimized) {
     return (
       <div 
-        className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg w-16 h-16 flex items-center justify-center cursor-pointer hover:shadow-xl transition-shadow"
+        className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg w-16 h-16 flex items-center justify-center cursor-pointer hover:shadow-xl transform hover:scale-105 transition-all duration-200"
         onClick={() => setIsMinimized(false)}
       >
         <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white">
@@ -62,7 +62,7 @@ const ChatWidget = () => {
   return (
     <div 
       className={`fixed bottom-4 right-4 bg-white rounded-lg shadow-xl flex
-        ${isSidebarExpanded ? 'w-[800px]' : 'w-[380px]'} h-[600px] overflow-hidden transition-all duration-300`}
+        ${isSidebarExpanded ? 'w-[900px]' : 'w-[420px]'} h-[700px] overflow-hidden transition-all duration-300`}
     >
       {isSidebarExpanded && (
         <ConversationSidebar
@@ -76,20 +76,24 @@ const ChatWidget = () => {
       )}
       
       <div className="flex-1 flex flex-col relative">
-        <SidebarToggle 
-          isExpanded={isSidebarExpanded}
-          onToggle={handleSidebarToggle}
-        />
-        
-        <Header 
-          onMinimize={() => setIsMinimized(true)}
-          onClose={() => setIsMinimized(true)}
-          onNewConversation={showNewChatButton ? handleNewConversation : undefined}
-        />
+        <div className="relative">
+          <SidebarToggle 
+            isExpanded={isSidebarExpanded}
+            onToggle={handleSidebarToggle}
+            className="absolute top-6 -left-1 h-[72px]"
+          />
+          
+          <Header 
+            onMinimize={() => setIsMinimized(true)}
+            onClose={() => setIsMinimized(true)}
+            onNewConversation={showNewChatButton ? handleNewConversation : undefined}
+            isSidebarExpanded={isSidebarExpanded}
+          />
+        </div>
         
         <div 
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto p-4 space-y-4"
+          className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
         >
           {error && (
             <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">

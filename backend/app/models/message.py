@@ -2,6 +2,21 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel
 
+class UserBase(BaseModel):
+    email: str
+    name: str
+    picture: Optional[str] = None
+
+class UserCreate(UserBase):
+    id: str  # Google User ID
+
+class User(UserBase):
+    id: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class MessageBase(BaseModel):
     content: str
 
@@ -25,7 +40,7 @@ class ConversationBase(BaseModel):
     title: str
 
 class ConversationCreate(ConversationBase):
-    pass
+    user_id: str
 
 class ConversationUpdate(ConversationBase):
     pass
@@ -35,6 +50,7 @@ class Conversation(ConversationBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     is_active: bool
+    user_id: str
 
     class Config:
         from_attributes = True

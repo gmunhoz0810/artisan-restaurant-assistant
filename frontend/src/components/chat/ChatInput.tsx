@@ -1,12 +1,14 @@
 import { useState, KeyboardEvent } from 'react';
+import { useAuth } from '../../context/AuthContext';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
-  disabled?: boolean;  // Added disabled prop
+  disabled?: boolean;
 }
 
 const ChatInput = ({ onSend, disabled = false }: ChatInputProps) => {
   const [message, setMessage] = useState('');
+  const { user } = useAuth();
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
@@ -23,18 +25,25 @@ const ChatInput = ({ onSend, disabled = false }: ChatInputProps) => {
   };
 
   return (
-    <div className="border-t p-4 flex items-center gap-2">
-      <button 
-        className="text-gray-400 hover:text-gray-600"
-        aria-label="Settings"
-        disabled={disabled}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      </button>
+    <div className="border-t p-4 flex items-center gap-3">
+      {/* User profile picture */}
+      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+        {user?.picture ? (
+          <img
+            src={user.picture}
+            alt={user.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-purple-100 flex items-center justify-center">
+            <span className="text-sm font-medium text-purple-600">
+              {user?.name?.charAt(0) || 'U'}
+            </span>
+          </div>
+        )}
+      </div>
 
+      {/* Message input */}
       <input
         type="text"
         value={message}
@@ -48,16 +57,17 @@ const ChatInput = ({ onSend, disabled = false }: ChatInputProps) => {
         disabled={disabled}
       />
 
+      {/* Send button */}
       <button
         onClick={handleSend}
         disabled={!message.trim() || disabled}
-        className={`text-purple-600 hover:text-purple-700 disabled:text-gray-400 ${
+        className={`text-purple-600 hover:text-purple-700 disabled:text-gray-400 w-8 h-8 flex items-center justify-center rounded-full hover:bg-purple-50 transition-colors ${
           disabled ? 'cursor-not-allowed' : ''
         }`}
         aria-label="Send message"
         data-testid="send-button"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
         </svg>
       </button>

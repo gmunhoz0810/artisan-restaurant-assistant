@@ -5,7 +5,7 @@ import os
 
 load_dotenv()
 
-from .api import messages
+from .api import messages, auth
 from .core.database import engine
 from .models import database_models
 
@@ -22,6 +22,7 @@ app.add_middleware(
 )
 
 app.include_router(messages.router, prefix="/api/messages", tags=["messages"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
 @app.get("/")
 async def root():
