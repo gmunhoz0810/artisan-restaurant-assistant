@@ -9,6 +9,8 @@ from ..core.database import get_db
 from ..models.database_models import User
 
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+if not GOOGLE_CLIENT_ID:
+    raise ValueError("GOOGLE_CLIENT_ID environment variable is not set")
 
 oauth2_scheme = OAuth2AuthorizationCodeBearer(
     authorizationUrl="https://accounts.google.com/o/oauth2/v2/auth",
@@ -19,7 +21,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     try:
         # Verify Google token
         idinfo = id_token.verify_oauth2_token(
-            token, requests.Request(), GOOGLE_CLIENT_ID
+            token, 
+            requests.Request(), 
+            GOOGLE_CLIENT_ID,
+            clock_skew_in_seconds=60
         )
 
         if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
@@ -36,6 +41,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         return user
 
     except Exception as e:
+        print(f"Error in get_current_user: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",

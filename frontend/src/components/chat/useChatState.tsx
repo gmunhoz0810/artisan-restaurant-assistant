@@ -34,8 +34,31 @@ export function useChatState() {
     };
   };
 
-  const hasEmptyConversation = (conversations: Conversation[]): boolean => 
-    conversations.some(conv => !conv.messages || conv.messages.length === 0);
+  const findEmptyConversation = (conversations: Conversation[]): Conversation | undefined => {
+    if (!conversations || conversations.length === 0) return undefined;
+    return conversations.find(conv => {
+      // Only check current conversation if it's the active one
+      if (conv.is_active) {
+        return false;
+      }
+      // Check if messages array exists and is empty
+      const messages = conv.messages || [];
+      return messages.length === 0;
+    });
+  };
+
+  const hasEmptyConversation = (conversations: Conversation[]): boolean => {
+    if (!conversations || conversations.length === 0) return false;
+    return conversations.some(conv => {
+      // Only check current conversation if it's the active one
+      if (conv.is_active) {
+        return false;
+      }
+      // Check if messages array exists and is empty
+      const messages = conv.messages || [];
+      return messages.length === 0;
+    });
+  };
 
   const getCanCreateNewChat = (currentMessages: Message[], conversations: Conversation[]): boolean => 
     currentMessages.length > 0 && !hasEmptyConversation(conversations);
@@ -80,6 +103,14 @@ export function useChatState() {
   const handleNewConversation = async () => {
     try {
       setError(null);
+      
+      // Check for empty conversation but exclude the active one
+      const emptyConv = findEmptyConversation(archivedConversations);
+      if (emptyConv && emptyConv.id !== currentConversationId) {
+        // If there is an empty conversation and we're not in it, switch to it
+        await handleSelectConversation(emptyConv.id);
+        return;
+      }
       
       const response = await fetch('http://localhost:8000/api/messages/new-conversation', {
         method: 'POST',
