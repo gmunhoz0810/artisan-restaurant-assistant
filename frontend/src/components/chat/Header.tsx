@@ -1,9 +1,11 @@
+// src/components/chat/Header.tsx
 interface HeaderProps {
     onMinimize: () => void;
     onClose: () => void;
+    onClearChat: () => void;
   }
   
-  const Header = ({ onMinimize, onClose }: HeaderProps) => {
+  const Header = ({ onMinimize, onClose, onClearChat }: HeaderProps) => {
     return (
       <div className="relative p-4 border-b">
         {/* Window controls */}
@@ -15,6 +17,16 @@ interface HeaderProps {
           <button
             className="w-3 h-3 rounded-full bg-gray-300"
           />
+        </div>
+  
+        {/* Clear chat button */}
+        <div className="absolute right-12 top-1/2 -translate-y-1/2">
+          <button
+            onClick={onClearChat}
+            className="text-gray-400 hover:text-gray-600 text-sm"
+          >
+            Clear Chat
+          </button>
         </div>
   
         {/* Close button */}
@@ -39,7 +51,7 @@ interface HeaderProps {
             />
           </div>
           <h1 className="text-lg font-semibold">Hey 👋, I'm Ava</h1>
-          <p className="text-sm text-gray-500">Ask me anything or pick a place to start</p>
+          <p className="text-sm text-gray-500">Ask me anything about restaurants</p>
         </div>
       </div>
     );
