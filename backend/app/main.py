@@ -1,5 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 from .api import messages
 from .core.database import engine
 from .models import database_models

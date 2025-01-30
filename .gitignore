@@ -35,3 +35,6 @@ dist/
 
 extract_text.py
 project_structure.txt
+
+# Databases
+*.db

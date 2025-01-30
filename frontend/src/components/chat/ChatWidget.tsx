@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import Header from './Header';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
-import { messageApi } from '../../services/api';
 
 interface Message {
   id: number;
@@ -17,42 +16,149 @@ const ChatWidget = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Load initial messages with cleanup
   useEffect(() => {
-    loadMessages();
+    let mounted = true;
+
+    const fetchMessages = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/messages/');
+        const data = await response.json();
+        if (mounted) {
+          setMessages(data);
+          setIsLoading(false);
+        }
+      } catch (err) {
+        if (mounted) {
+          console.error('Error loading messages:', err);
+          setError('Failed to load messages');
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchMessages();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const loadMessages = async () => {
-    try {
-      setIsLoading(true);
-      const fetchedMessages = await messageApi.getMessages();
-      setMessages(fetchedMessages);
-      setError(null);
-    } catch (err) {
-      setError('Failed to load messages');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const handleSendMessage = async (content: string) => {
     try {
-      const newMessage = await messageApi.sendMessage(content);
-      setMessages(prevMessages => [...prevMessages, newMessage]);
+      setError(null);
+      // Add user message
+      const newMessage = {
+        id: Date.now(),
+        content,
+        sender: 'user' as const,
+        timestamp: new Date().toISOString(),
+        isEdited: false
+      };
+      setMessages(prev => [...prev, newMessage]);
+
+      // Start streaming response
+      const response = await fetch('http://localhost:8000/api/messages/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      // Create bot message placeholder
+      const botMessage = {
+        id: Date.now() + 1,
+        content: '',
+        sender: 'bot' as const,
+        timestamp: new Date().toISOString(),
+        isEdited: false
+      };
+      setMessages(prev => [...prev, botMessage]);
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('Failed to get response reader');
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(5);
+            if (data === '[DONE]') break;
+            
+            try {
+              const parsedData = JSON.parse(data);
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const lastMessage = newMessages[newMessages.length - 1];
+                if (lastMessage && lastMessage.sender === 'bot') {
+                  lastMessage.content += parsedData.content;
+                }
+                return newMessages;
+              });
+            } catch (e) {
+              console.error('Error parsing chunk:', e);
+            }
+          }
+        }
+      }
     } catch (err) {
       setError('Failed to send message');
       console.error(err);
     }
   };
 
+  const handleClearChat = async () => {
+    try {
+      setError(null);
+      const response = await fetch('http://localhost:8000/api/messages/clear', {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) throw new Error('Failed to clear chat');
+      
+      setMessages([]);
+    } catch (err) {
+      setError('Failed to clear chat');
+      console.error(err);
+    }
+  };
+
   const handleEditMessage = async (id: number, content: string) => {
     try {
-      const updatedMessage = await messageApi.updateMessage(id, content);
-      setMessages(prevMessages =>
-        prevMessages.map(msg =>
-          msg.id === id ? updatedMessage : msg
-        )
+      setError(null);
+      const response = await fetch(`http://localhost:8000/api/messages/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to edit message');
+      
+      const updatedMessage = await response.json();
+      setMessages(prev =>
+        prev.map(msg => msg.id === id ? updatedMessage : msg)
       );
     } catch (err) {
       setError('Failed to edit message');
@@ -62,10 +168,14 @@ const ChatWidget = () => {
 
   const handleDeleteMessage = async (id: number) => {
     try {
-      await messageApi.deleteMessage(id);
-      setMessages(prevMessages =>
-        prevMessages.filter(msg => msg.id !== id)
-      );
+      setError(null);
+      const response = await fetch(`http://localhost:8000/api/messages/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) throw new Error('Failed to delete message');
+      
+      setMessages(prev => prev.filter(msg => msg.id !== id));
     } catch (err) {
       setError('Failed to delete message');
       console.error(err);
@@ -90,6 +200,7 @@ const ChatWidget = () => {
       <Header 
         onMinimize={() => setIsMinimized(true)}
         onClose={() => setIsMinimized(true)}
+        onClearChat={handleClearChat}
       />
       
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -117,6 +228,7 @@ const ChatWidget = () => {
             />
           ))
         )}
+        <div ref={bottomRef} />
       </div>
 
       <ChatInput onSend={handleSendMessage} />
@@ -124,4 +236,4 @@ const ChatWidget = () => {
   );
 };
 
-export default ChatWidget;
+export default memo(ChatWidget);
