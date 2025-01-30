@@ -11,12 +11,13 @@ export interface Message {
 }
 
 export interface Conversation {
-  id: number;
-  title: string;
-  created_at: string;
-  is_active: boolean;
-  messages?: Message[];
-}
+    id: number;
+    title: string;
+    created_at: string;
+    is_active: boolean;
+    is_new: boolean;  // Added this field
+    messages?: Message[];
+  }
 
 export function useChatState() {
   const { isAuthenticated } = useAuth();
@@ -102,49 +103,40 @@ export function useChatState() {
 
   const handleNewConversation = async () => {
     try {
-      setError(null);
+      // First check if there's already a new conversation
+      const existingNewConv = archivedConversations.find(conv => conv.is_new === true);
       
-      // Check for empty conversation but exclude the active one
-      const emptyConv = findEmptyConversation(archivedConversations);
-      if (emptyConv && emptyConv.id !== currentConversationId) {
-        // If there is an empty conversation and we're not in it, switch to it
-        await handleSelectConversation(emptyConv.id);
+      if (existingNewConv) {
+        // Just switch to the existing new conversation
+        await handleSelectConversation(existingNewConv.id);
         return;
       }
-      
+  
+      // If no new conversation exists, create one
       const response = await fetch('http://localhost:8000/api/messages/new-conversation', {
         method: 'POST',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
   
       if (!response.ok) throw new Error('Failed to create new conversation');
   
       const result = await response.json();
       
-      if (result.status === 'success') {
-        // Refresh conversations list
-        const convResponse = await fetch('http://localhost:8000/api/messages/conversations', {
-          headers: getAuthHeaders()
-        });
-        const conversations = await convResponse.json();
-        
-        setArchivedConversations(conversations);
-        
-        // Directly set the new conversation as active
-        setCurrentConversationId(result.id);
-        setMessages([]);
-        
-        // Find and activate the new conversation
-        const newConv = conversations.find((c: Conversation) => c.id === result.id);
-        if (newConv) {
-          // Update conversation title in list
-          setArchivedConversations(prev => 
-            prev.map(conv => 
-              conv.id === result.id ? {...conv, is_active: true} : {...conv, is_active: false}
-            )
-          );
-        }
-      }
+      setArchivedConversations(prev => [
+        {
+          id: result.id,
+          title: result.title,
+          created_at: result.created_at,
+          is_active: result.is_active,
+          is_new: result.is_new,
+          messages: []
+        },
+        ...prev.map(conv => ({...conv, is_active: false}))
+      ]);
+      
+      setCurrentConversationId(result.id);
+      setMessages([]);
+      
     } catch (err) {
       setError('Failed to create new conversation');
       console.error(err);
@@ -265,6 +257,23 @@ export function useChatState() {
   
             try {
               const parsedData = JSON.parse(data);
+
+              if (parsedData.conversation_update) {
+                console.log('Received conversation update:', parsedData.conversation_update);
+                
+                // Update conversation in state
+                setArchivedConversations(prev =>
+                  prev.map(conv =>
+                    conv.id === parsedData.conversation_update.id
+                      ? {
+                          ...conv,
+                          title: parsedData.conversation_update.title,
+                          is_new: false // Explicitly set to false
+                        }
+                      : conv
+                  )
+                );
+              }
   
               if (parsedData.user_message_id && !userMessageId) {
                 userMessageId = parsedData.user_message_id;

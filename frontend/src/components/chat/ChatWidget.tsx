@@ -9,6 +9,7 @@ import { useChatState } from './useChatState';
 const ChatWidget = () => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -26,14 +27,12 @@ const ChatWidget = () => {
     handleDeleteConversation,
   } = useChatState();
 
-  // Scroll to bottom when messages change or loading state changes
   useEffect(() => {
     if (!isLoading) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isLoading]);
 
-  // Reset scroll when switching conversations
   useEffect(() => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = 0;
@@ -42,6 +41,17 @@ const ChatWidget = () => {
 
   const handleSidebarToggle = () => {
     setIsSidebarExpanded(!isSidebarExpanded);
+  };
+
+  const handleMessageSend = async (content: string) => {
+    if (isProcessing) return;
+    
+    try {
+      setIsProcessing(true);
+      await handleSendMessage(content);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (isMinimized) {
@@ -72,6 +82,7 @@ const ChatWidget = () => {
           onNewConversation={handleNewConversation}
           onDeleteConversation={handleDeleteConversation}
           canCreateNewChat={showNewChatButton}
+          isProcessing={isProcessing}
         />
       )}
       
@@ -122,7 +133,7 @@ const ChatWidget = () => {
           <div ref={bottomRef} />
         </div>
 
-        <ChatInput onSend={handleSendMessage} disabled={isLoading} />
+        <ChatInput onSend={handleMessageSend} disabled={isLoading || isProcessing} />
       </div>
     </div>
   );

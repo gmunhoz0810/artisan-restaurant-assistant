@@ -26,12 +26,20 @@ async def get_conversations(
     db: Session = Depends(get_db)
 ):
     """Get all conversations for current user"""
-    return (
+    conversations = (
         db.query(ConversationModel)
         .filter(ConversationModel.user_id == current_user.id)
         .order_by(ConversationModel.created_at.desc())
         .all()
     )
+    
+    print("\n=== GET CONVERSATIONS ===")
+    for conv in conversations:
+        print(f"Conversation {conv.id}: title='{conv.title}', is_new={conv.is_new}, is_active={conv.is_active}")
+        message_count = db.query(MessageModel).filter(MessageModel.conversation_id == conv.id).count()
+        print(f"  Message count: {message_count}")
+    
+    return conversations
 
 @router.post("/new-conversation")
 async def create_new_conversation(
@@ -40,38 +48,43 @@ async def create_new_conversation(
 ):
     """Create a new conversation"""
     try:
-        # Set all user's conversations to inactive
+        print("\n=== BEFORE NEW CONVERSATION ===")
+        existing_convs = db.query(ConversationModel).filter(ConversationModel.user_id == current_user.id).all()
+        for conv in existing_convs:
+            print(f"Existing conversation {conv.id}: is_new={conv.is_new}, is_active={conv.is_active}")
+
+        # Only update is_active flag
         db.query(ConversationModel)\
           .filter(
               ConversationModel.user_id == current_user.id,
               ConversationModel.is_active == True
           )\
-          .update({ConversationModel.is_active: False})
-
-        # Get next conversation number for this user
-        max_number = db.query(
-            func.max(
-                cast(
-                    func.substr(ConversationModel.title, 13),
-                    Integer
-                )
-            )
-        ).filter(ConversationModel.user_id == current_user.id).scalar() or 0
+          .update({ConversationModel.is_active: False}, synchronize_session='fetch')
 
         # Create new conversation
         new_conversation = ConversationModel(
-            title=f"Conversation {max_number + 1}",
+            title="New Conversation",
             is_active=True,
+            is_new=True,
             user_id=current_user.id
         )
         db.add(new_conversation)
         db.commit()
         db.refresh(new_conversation)
 
+        print("\n=== AFTER NEW CONVERSATION ===")
+        all_convs = db.query(ConversationModel).filter(ConversationModel.user_id == current_user.id).all()
+        for conv in all_convs:
+            print(f"Conversation {conv.id}: is_new={conv.is_new}, is_active={conv.is_active}")
+
+        # Return full conversation data
         return {
-            "status": "success",
             "id": new_conversation.id,
-            "title": new_conversation.title
+            "title": new_conversation.title,
+            "is_new": True,  # Explicitly include is_new
+            "is_active": True,
+            "created_at": new_conversation.created_at.isoformat(),
+            "messages": []
         }
 
     except Exception as e:
@@ -134,6 +147,10 @@ async def get_conversation(
     )
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    print(f"\n=== GET CONVERSATION {conversation_id} ===")
+    print(f"State: is_new={conversation.is_new}, title='{conversation.title}'")
+    
     return conversation
 
 @router.delete("/conversations/{conversation_id}")
@@ -158,48 +175,22 @@ async def delete_conversation(
     db.commit()
     return {"status": "success"}
 
-@router.get("/", response_model=List[MessageSchema])
-async def get_messages(
-    current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get messages for the active conversation"""
-    conversation = (
-        db.query(ConversationModel)
-        .filter(
-            ConversationModel.user_id == current_user.id,
-            ConversationModel.is_active == True
-        )
-        .first()
-    )
-    
-    if not conversation:
-        # Create initial conversation if none exists
-        conversation = ConversationModel(
-            title="Conversation 1",
-            is_active=True,
-            user_id=current_user.id
-        )
-        db.add(conversation)
-        db.commit()
-        db.refresh(conversation)
-    
-    messages = (
-        db.query(MessageModel)
-        .filter(MessageModel.conversation_id == conversation.id)
-        .order_by(MessageModel.timestamp.asc())
-        .all()
-    )
-    return messages
-
 @router.post("/stream")
 async def create_streaming_message(
     message: MessageCreate,
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """Stream message responses"""
     try:
-        # Verify conversation belongs to user
+        conversation = None
+        user_msg_id = None
+        bot_msg_id = None
+        conv_id = None
+        thread_id = None
+        conversation_updated = False
+        final_update_data = None
+
         with SessionLocal() as temp_db:
             conversation = temp_db.query(ConversationModel)\
                 .filter(
@@ -210,6 +201,34 @@ async def create_streaming_message(
                 
             if not conversation:
                 raise HTTPException(status_code=404, detail="Conversation not found")
+            
+            print(f"\n=== STREAM START ===")
+            print(f"Processing message for conversation {conversation.id}")
+            print(f"Before update: is_new={conversation.is_new}, title='{conversation.title}'")
+            
+            # If this is a new conversation, update its title
+            if conversation.is_new:
+                # Get count of all conversations that were ever used
+                existing_conversations = temp_db.query(ConversationModel)\
+                    .filter(
+                        ConversationModel.user_id == current_user.id,
+                        ConversationModel.is_new == False
+                    )\
+                    .count()
+                
+                # Update current conversation
+                new_title = f"Conversation {existing_conversations + 1}"
+                conversation.title = new_title
+                conversation.is_new = False
+                temp_db.commit()
+                temp_db.refresh(conversation)
+                conversation_updated = True
+                final_update_data = {
+                    'id': conversation.id,
+                    'title': conversation.title,
+                    'is_new': False
+                }
+                print(f"After update: is_new={conversation.is_new}, title='{conversation.title}'")
             
             # Store critical values
             conv_id = conversation.id
@@ -225,7 +244,7 @@ async def create_streaming_message(
             
             # Create bot message placeholder
             bot_message = MessageModel(
-                content="",  # Empty content initially
+                content="",
                 sender="bot",
                 conversation_id=conv_id
             )
@@ -237,11 +256,17 @@ async def create_streaming_message(
             user_msg_id = db_message.id
             bot_msg_id = bot_message.id
 
-        async def process_stream():
+        # Create the streaming response
+        async def generate():
+            chunk = None
             try:
                 # Send initial IDs
                 yield f"data: {json.dumps({'user_message_id': user_msg_id})}\n\n"
                 yield f"data: {json.dumps({'bot_message_id': bot_msg_id})}\n\n"
+                
+                # If conversation was updated, send that info immediately
+                if conversation_updated and final_update_data:
+                    yield f"data: {json.dumps({'conversation_update': final_update_data})}\n\n"
 
                 # Get streaming response
                 response = await chat_service.get_streaming_response(
@@ -261,11 +286,9 @@ async def create_streaming_message(
                         except json.JSONDecodeError:
                             pass
                     
-                    # Pass through the chunk
                     yield chunk
                     
                     if chunk.startswith('data: [DONE]'):
-                        # Final update of the bot message
                         with SessionLocal() as final_db:
                             bot_message = final_db.query(MessageModel).get(bot_msg_id)
                             if bot_message:
@@ -275,11 +298,12 @@ async def create_streaming_message(
             except Exception as e:
                 print(f"Stream error: {e}")
                 yield f"data: {json.dumps({'error': 'Stream failed'})}\n\n"
+                yield "data: [DONE]\n\n"
             finally:
-                if not chunk.startswith('data: [DONE]'):
+                if chunk is None or not chunk.startswith('data: [DONE]'):
                     yield "data: [DONE]\n\n"
 
-        return StreamingResponse(process_stream(), media_type="text/event-stream")
+        return StreamingResponse(generate(), media_type="text/event-stream")
 
     except Exception as e:
         print(f"Endpoint error: {e}")

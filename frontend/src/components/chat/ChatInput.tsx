@@ -20,13 +20,16 @@ const ChatInput = ({ onSend, disabled = false }: ChatInputProps) => {
   const handleKeyPress = (e: KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (!disabled) {
+        handleSend();
+      }
     }
   };
 
+  const canSend = message.trim().length > 0 && !disabled;
+
   return (
     <div className="border-t p-4 flex items-center gap-3">
-      {/* User profile picture */}
       <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
         {user?.picture ? (
           <img
@@ -43,26 +46,21 @@ const ChatInput = ({ onSend, disabled = false }: ChatInputProps) => {
         )}
       </div>
 
-      {/* Message input */}
       <input
         type="text"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         onKeyPress={handleKeyPress}
-        placeholder="Type your message..."
-        className={`flex-1 rounded-full border border-gray-300 px-4 py-2 focus:outline-none focus:border-purple-500 ${
-          disabled ? 'bg-gray-100 cursor-not-allowed' : ''
-        }`}
+        placeholder={"Type your message..."}
+        className="flex-1 rounded-full border border-gray-300 px-4 py-2 focus:outline-none focus:border-purple-500"
         aria-label="Message input"
-        disabled={disabled}
       />
 
-      {/* Send button */}
       <button
         onClick={handleSend}
-        disabled={!message.trim() || disabled}
-        className={`text-purple-600 hover:text-purple-700 disabled:text-gray-400 w-8 h-8 flex items-center justify-center rounded-full hover:bg-purple-50 transition-colors ${
-          disabled ? 'cursor-not-allowed' : ''
+        disabled={!canSend}
+        className={`text-purple-600 hover:text-purple-700 disabled:text-gray-400 w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+          !canSend ? 'cursor-not-allowed opacity-50' : 'hover:bg-purple-50'
         }`}
         aria-label="Send message"
         data-testid="send-button"

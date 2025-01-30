@@ -21,10 +21,11 @@ class Conversation(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     is_active = Column(Boolean, default=True)
-    thread_id = Column(String, unique=True, nullable=True)  # OpenAI thread ID
-    user_id = Column(String, ForeignKey("users.id"))  # Add this line
+    is_new = Column(Boolean, default=True)  # New field to track pristine state
+    thread_id = Column(String, unique=True, nullable=True)
+    user_id = Column(String, ForeignKey("users.id"))
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
-    user = relationship("User", back_populates="conversations")  # Add this line
+    user = relationship("User", back_populates="conversations")
 
 class Message(Base):
     __tablename__ = "messages"
