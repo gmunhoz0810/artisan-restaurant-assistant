@@ -96,7 +96,20 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-3. Setup Frontend:
+3. Create your .env file in the backend directory:
+```bash
+# backend/.env
+touch .env
+```
+
+4. Add API keys inside .env file:
+```bash
+OPENAI_API_KEY=your_openai_key
+GOOGLE_CLIENT_ID=your_google_client_id
+YELP_API_KEY=your_yelp_api_key
+```
+
+5. In a new termial - Setup Frontend:
 ```bash
 cd frontend
 npm install
