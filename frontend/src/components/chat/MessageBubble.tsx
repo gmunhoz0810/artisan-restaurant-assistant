@@ -41,15 +41,11 @@ export const MessageBubble = ({
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'items-start'} gap-2`}>
       {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-purple-100 flex-shrink-0">
+        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
           <img
-            src="/avatar.png"
-            alt="Assistant Avatar"
-            className="w-full h-full rounded-full object-cover"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="%23C4B5FD"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="16" fill="%23FFFFFF">A</text></svg>';
-            }}
+            src="/ChefAva.png"
+            alt="Ava"
+            className="w-full h-full object-cover"
           />
         </div>
       )}
