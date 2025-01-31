@@ -56,11 +56,11 @@ const ConversationSidebar = ({
           <button
             onClick={onNewConversation}
             disabled={!canCreateNewChat}
-            className={`w-full rounded-lg py-2 px-4 transition-colors cursor-pointer ${
-              canCreateNewChat 
-                ? 'bg-purple-600 hover:bg-purple-700 text-white' 
-                : 'bg-gray-300 cursor-not-allowed text-gray-500'
-            }`}
+            className={`w-full rounded-lg py-2 px-4 transition-colors ${
+                canCreateNewChat 
+                  ? 'bg-purple-600 hover:bg-purple-700 text-white cursor-pointer' 
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+            }`}  
           >
             New Chat
           </button>

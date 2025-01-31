@@ -183,29 +183,6 @@ async def get_conversation(
         "messages": conversation.messages
     }
 
-@router.get("/conversations/{conversation_id}", response_model=ConversationWithMessages)
-async def get_conversation(
-    conversation_id: int,
-    current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get a specific conversation and its messages"""
-    conversation = (
-        db.query(ConversationModel)
-        .filter(
-            ConversationModel.id == conversation_id,
-            ConversationModel.user_id == current_user.id
-        )
-        .first()
-    )
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    print(f"\n=== GET CONVERSATION {conversation_id} ===")
-    print(f"State: is_new={conversation.is_new}, title='{conversation.title}'")
-    
-    return conversation
-
 @router.delete("/conversations/{conversation_id}")
 async def delete_conversation(
     conversation_id: int,
@@ -261,16 +238,30 @@ async def create_streaming_message(
             
             # If this is a new conversation, update its title
             if conversation.is_new:
-                # Get count of all conversations that were ever used
-                existing_conversations = temp_db.query(ConversationModel)\
+                # Find the highest conversation number by parsing existing titles
+                existing_numbers = []
+                all_conversations = temp_db.query(ConversationModel)\
                     .filter(
                         ConversationModel.user_id == current_user.id,
                         ConversationModel.is_new == False
                     )\
-                    .count()
+                    .all()
+                
+                for conv in all_conversations:
+                    if conv.title.startswith("Conversation "):
+                        try:
+                            num = int(conv.title.split(" ")[1])
+                            existing_numbers.append(num)
+                        except (ValueError, IndexError):
+                            continue
+                
+                # Use the next available number
+                next_number = 1
+                if existing_numbers:
+                    next_number = max(existing_numbers) + 1
                 
                 # Update current conversation
-                new_title = f"Conversation {existing_conversations + 1}"
+                new_title = f"Conversation {next_number}"
                 conversation.title = new_title
                 conversation.is_new = False
                 temp_db.commit()

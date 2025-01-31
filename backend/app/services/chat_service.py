@@ -2,7 +2,7 @@ from openai import OpenAI
 import os
 from typing import List, Dict
 from fastapi.responses import StreamingResponse
-from ..models.database_models import Message as MessageModel, Conversation as ConversationModel
+from ..models.database_models import Message as MessageModel, Conversation as ConversationModel, User as UserModel
 import json
 import asyncio
 
@@ -12,17 +12,16 @@ client = OpenAI(
 
 class ChatService:
     def __init__(self):
-        # Initialize assistant_id, either load from env or create new
         self.assistant_id = os.getenv("OPENAI_ASSISTANT_ID")
         if not self.assistant_id:
-            # Create new assistant if no ID is stored
             assistant = client.beta.assistants.create(
                 name="Restaurant Assistant",
-                instructions="""You are a helpful restaurant assistant. 
+                instructions="""You Chef Ava, a helpful restaurant assistant. 
                 Help users find restaurants and answer questions about food and dining.
                 When users ask about specific restaurants or cuisines, use the search_restaurants function to find relevant options.
                 Always provide thoughtful and detailed responses about restaurants, dining experiences, and cuisine.
-                Also maintain conversation context and refer to previous messages when appropriate.""",
+                Also maintain conversation context and refer to previous messages when appropriate.
+                Refer to people by their first name only, don't mention their last names.""",
                 tools=[{
                     "type": "function",
                     "function": {
@@ -52,34 +51,39 @@ class ChatService:
                         }
                     }
                 }],
-                model="gpt-4o"
+                model="gpt-4"
             )
             self.assistant_id = assistant.id
-            # Optionally save the assistant ID to env or config
             print(f"Created new assistant with ID: {self.assistant_id}")
 
     async def get_streaming_response(self, conversation_id: int, thread_id: str, message: str, db=None) -> StreamingResponse:
         try:
             if not thread_id:
-                # Create new thread if none exists
                 thread = client.beta.threads.create()
                 thread_id = thread.id
                 
-                # Update conversation with thread_id
                 if db:
                     conversation = db.query(ConversationModel).filter_by(id=conversation_id).first()
                     if conversation:
                         conversation.thread_id = thread_id
+                        user = db.query(UserModel).filter_by(id=conversation.user_id).first()
+                        if user:
+                            # Add a system message with the user's name
+                            client.beta.threads.messages.create(
+                                thread_id=thread_id,
+                                role="user",
+                                content=f"Hello! Just so you know, my name from my Google account is: {user.name}. Please use my name occasionally in our conversation to make it more personal."
+                            )
                         db.commit()
 
-            # Add message to thread
+            # Add the user's message to thread
             client.beta.threads.messages.create(
                 thread_id=thread_id,
                 role="user",
                 content=message
             )
 
-            # Run the assistant using the stored assistant_id
+            # Run the assistant
             run = client.beta.threads.runs.create(
                 thread_id=thread_id,
                 assistant_id=self.assistant_id
@@ -95,19 +99,16 @@ class ChatService:
                         )
 
                         if run_status.status == 'completed':
-                            # Get the assistant's response
                             messages = client.beta.threads.messages.list(thread_id=thread_id)
                             latest_message = messages.data[0]
                             content = latest_message.content[0].text.value
 
-                            # Stream the content word by word
                             words = content.split(' ')
                             for word in words:
                                 accumulated_content.append(word + ' ')
                                 yield f"data: {json.dumps({'content': word + ' '})}\n\n"
                                 await asyncio.sleep(0.05)
                             
-                            # Update the bot message in the database
                             if db:
                                 bot_message = (
                                     db.query(MessageModel)
