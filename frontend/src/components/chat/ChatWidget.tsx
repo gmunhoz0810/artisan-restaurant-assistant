@@ -60,8 +60,12 @@ const ChatWidget = () => {
         className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg w-16 h-16 flex items-center justify-center cursor-pointer hover:shadow-xl transform hover:scale-105 transition-all duration-200"
         onClick={() => setIsMinimized(false)}
       >
-        <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white">
-          A
+        <div className="w-10 h-10 rounded-full overflow-hidden">
+          <img
+            src="/ChefAva.png"
+            alt="Chef Ava"
+            className="w-full h-full object-cover"
+          />
         </div>
       </div>
     );
