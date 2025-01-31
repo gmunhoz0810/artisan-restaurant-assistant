@@ -5,7 +5,7 @@ import os
 
 load_dotenv()
 
-from .api import messages, auth
+from .api import messages, auth, yelp  # Add yelp import here
 from .core.database import engine
 from .models import database_models
 
@@ -23,6 +23,7 @@ app.add_middleware(
 
 app.include_router(messages.router, prefix="/api/messages", tags=["messages"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(yelp.router, prefix="/api/yelp", tags=["yelp"])  # Add this line
 
 @app.get("/")
 async def root():

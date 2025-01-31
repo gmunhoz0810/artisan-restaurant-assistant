@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { YelpSearchParams } from '../../services/yelp';
 
 export interface Message {
-  id: number;
-  content: string;
-  sender: 'user' | 'bot';
-  timestamp: string;
-  isEdited: boolean;
-  conversation_id?: number;
+    id: number;
+    content: string;
+    sender: 'user' | 'bot';
+    timestamp: string;
+    isEdited: boolean;
+    conversation_id?: number;
+    restaurant_search?: YelpSearchParams & { k?: number };
 }
 
 export interface Conversation {
@@ -15,9 +17,17 @@ export interface Conversation {
     title: string;
     created_at: string;
     is_active: boolean;
-    is_new: boolean;  // Added this field
+    is_new: boolean;
     messages?: Message[];
-  }
+}
+
+interface RawMessage extends Omit<Message, 'restaurant_search'> {
+    restaurant_search?: string | null | (YelpSearchParams & { k?: number });
+}
+
+interface RawConversation extends Omit<Conversation, 'messages'> {
+    messages?: RawMessage[];
+}
 
 export function useChatState() {
   const { isAuthenticated } = useAuth();
@@ -35,61 +45,74 @@ export function useChatState() {
     };
   };
 
-  const findEmptyConversation = (conversations: Conversation[]): Conversation | undefined => {
-    if (!conversations || conversations.length === 0) return undefined;
-    return conversations.find(conv => {
-      // Only check current conversation if it's the active one
-      if (conv.is_active) {
-        return false;
+  const processMessage = (msg: RawMessage): Message => {
+    let processedRestaurantSearch = msg.restaurant_search;
+    
+    if (typeof processedRestaurantSearch === 'string') {
+      try {
+        processedRestaurantSearch = JSON.parse(processedRestaurantSearch);
+      } catch {
+        processedRestaurantSearch = undefined;
       }
-      // Check if messages array exists and is empty
-      const messages = conv.messages || [];
-      return messages.length === 0;
-    });
+    }
+
+    return {
+      ...msg,
+      restaurant_search: processedRestaurantSearch as (YelpSearchParams & { k?: number }) | undefined
+    };
   };
 
-  const hasEmptyConversation = (conversations: Conversation[]): boolean => {
-    if (!conversations || conversations.length === 0) return false;
-    return conversations.some(conv => {
-      // Only check current conversation if it's the active one
-      if (conv.is_active) {
-        return false;
-      }
-      // Check if messages array exists and is empty
-      const messages = conv.messages || [];
-      return messages.length === 0;
-    });
+  const processConversation = (conv: RawConversation): Conversation => {
+    return {
+      ...conv,
+      messages: conv.messages?.map(processMessage)
+    };
   };
 
-  const getCanCreateNewChat = (currentMessages: Message[], conversations: Conversation[]): boolean => 
-    currentMessages.length > 0 && !hasEmptyConversation(conversations);
+  const getCanCreateNewChat = (currentMessages: Message[], conversations: Conversation[]): boolean => {
+    // Check for any existing new conversation first
+    const hasNewConversation = conversations.some(conv => conv.is_new);
+    if (hasNewConversation) return false;
+    
+    // Only allow new chat if current conversation has messages and isn't new
+    const currentConversation = conversations.find(conv => conv.is_active);
+    return currentMessages.length > 0 && 
+           currentConversation !== undefined && 
+           !currentConversation.is_new;
+  };
 
   const handleSelectConversation = async (id: number) => {
     try {
       setIsLoading(true);
       setError(null);
       
-      // First activate the conversation
+      console.log('Selecting conversation:', id);
+      
       await fetch(`http://localhost:8000/api/messages/conversations/${id}/activate`, {
         method: 'POST',
         headers: getAuthHeaders()
       });
 
-      // Then load the conversation data
       const response = await fetch(`http://localhost:8000/api/messages/conversations/${id}`, {
         headers: getAuthHeaders()
       });
       if (!response.ok) throw new Error('Failed to load conversation');
       
-      const conversation = await response.json();
+      const rawConversation: RawConversation = await response.json();
+      console.log('Loaded conversation data:', rawConversation);
+      
+      const processedConversation = processConversation(rawConversation);
+      console.log('Processed conversation:', processedConversation);
+      
       setCurrentConversationId(id);
-      setMessages(conversation.messages || []);
+      setMessages(processedConversation.messages || []);
 
-      // Update local state
       setArchivedConversations(prev => 
         prev.map(conv => ({
           ...conv,
-          is_active: conv.id === id
+          is_active: conv.id === id,
+          is_new: conv.id === id ? processedConversation.is_new : conv.is_new,
+          title: conv.id === id ? processedConversation.title : conv.title  // Add this line
         }))
       );
       
@@ -103,16 +126,13 @@ export function useChatState() {
 
   const handleNewConversation = async () => {
     try {
-      // First check if there's already a new conversation
       const existingNewConv = archivedConversations.find(conv => conv.is_new === true);
       
       if (existingNewConv) {
-        // Just switch to the existing new conversation
         await handleSelectConversation(existingNewConv.id);
         return;
       }
   
-      // If no new conversation exists, create one
       const response = await fetch('http://localhost:8000/api/messages/new-conversation', {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -121,22 +141,34 @@ export function useChatState() {
       if (!response.ok) throw new Error('Failed to create new conversation');
   
       const result = await response.json();
+      const returnedConvId = result.id;
+      const existingConv = archivedConversations.find(conv => conv.id === returnedConvId);
       
-      setArchivedConversations(prev => [
-        {
-          id: result.id,
-          title: result.title,
-          created_at: result.created_at,
-          is_active: result.is_active,
-          is_new: result.is_new,
-          messages: []
-        },
-        ...prev.map(conv => ({...conv, is_active: false}))
-      ]);
-      
-      setCurrentConversationId(result.id);
-      setMessages([]);
-      
+      if (existingConv) {
+        setArchivedConversations(prev => 
+          prev.map(conv => ({
+            ...conv,
+            is_active: conv.id === returnedConvId,
+            is_new: conv.id === returnedConvId ? true : conv.is_new
+          }))
+        );
+        setCurrentConversationId(returnedConvId);
+        setMessages(existingConv.messages || []);
+      } else {
+        setArchivedConversations(prev => [
+          {
+            id: result.id,
+            title: result.title,
+            created_at: result.created_at,
+            is_active: result.is_active,
+            is_new: result.is_new,
+            messages: []
+          },
+          ...prev.map(conv => ({...conv, is_active: false}))
+        ]);
+        setCurrentConversationId(result.id);
+        setMessages([]);
+      }
     } catch (err) {
       setError('Failed to create new conversation');
       console.error(err);
@@ -148,29 +180,41 @@ export function useChatState() {
       setIsLoading(false);
       return;
     }
-
+  
     try {
+      console.log('Loading initial data...');
       const response = await fetch('http://localhost:8000/api/messages/conversations', {
         headers: getAuthHeaders()
       });
       
       if (response.ok) {
-        const conversations: Conversation[] = await response.json();
-        setArchivedConversations(conversations);
-
-        // Find active conversation or create new one
-        const activeConversation = conversations.find(c => c.is_active);
+        const rawConversations: RawConversation[] = await response.json();
+        console.log('Raw conversations data:', rawConversations);
+        
+        const processedConversations = rawConversations.map(processConversation);
+        
+        processedConversations.forEach(conv => {
+          console.log(`Conversation ${conv.id} messages:`, conv.messages);
+          conv.messages?.forEach(msg => {
+            console.log(`Message ${msg.id} full data:`, msg);
+            console.log(`Message ${msg.id} restaurant_search:`, msg.restaurant_search);
+          });
+        });
+        
+        setArchivedConversations(processedConversations);
+  
+        const activeConversation = processedConversations.find(c => c.is_active);
         if (activeConversation) {
+          console.log('Setting active conversation:', activeConversation);
           setCurrentConversationId(activeConversation.id);
+          console.log('Setting messages:', activeConversation.messages);
           setMessages(activeConversation.messages || []);
-        } else if (conversations.length > 0) {
-          setCurrentConversationId(conversations[0].id);
-          setMessages(conversations[0].messages || []);
+        } else if (processedConversations.length > 0) {
+          await handleSelectConversation(processedConversations[0].id);
         } else {
           await handleNewConversation();
         }
       } else if (response.status === 401) {
-        // Handle unauthorized error
         setError('Please log in to continue');
       }
       setIsLoading(false);
@@ -205,7 +249,6 @@ export function useChatState() {
       };
       setMessages((prev) => [...prev, tempUserMessage]);
   
-      // Send message to backend
       const response = await fetch('http://localhost:8000/api/messages/stream', {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -219,7 +262,6 @@ export function useChatState() {
         throw new Error('Failed to send message');
       }
   
-      // Add bot message placeholder
       const tempBotMessage: Message = {
         id: -1,
         content: '',
@@ -230,7 +272,6 @@ export function useChatState() {
       };
       setMessages((prev) => [...prev, tempBotMessage]);
   
-      // Read the stream
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
   
@@ -241,6 +282,9 @@ export function useChatState() {
       let userMessageId: number | null = null;
       let botMessageId: number | null = null;
       let incompleteChunk = '';
+      let restaurantSearch: YelpSearchParams & { k?: number } | undefined;
+      
+      console.log('Starting message stream processing...');
   
       while (true) {
         const { done, value } = await reader.read();
@@ -258,17 +302,37 @@ export function useChatState() {
             try {
               const parsedData = JSON.parse(data);
 
+              if (parsedData.restaurant_search) {
+                restaurantSearch = parsedData.restaurant_search;
+                console.log('Received restaurant search data:', restaurantSearch);
+                
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMessage = newMessages[newMessages.length - 1];
+                  if (lastMessage && lastMessage.sender === 'bot') {
+                    // Create a new message object to ensure state update
+                    const updatedMessage: Message = {
+                      ...lastMessage,
+                      restaurant_search: restaurantSearch
+                    };
+                    console.log('Updating bot message with restaurant data:', updatedMessage);
+                    newMessages[newMessages.length - 1] = updatedMessage;
+                  }
+                  return [...newMessages]; // Force a new array reference
+                });
+              }
+
               if (parsedData.conversation_update) {
                 console.log('Received conversation update:', parsedData.conversation_update);
                 
-                // Update conversation in state
+                // Immediately update both archived conversations and current conversation
                 setArchivedConversations(prev =>
                   prev.map(conv =>
                     conv.id === parsedData.conversation_update.id
                       ? {
                           ...conv,
-                          title: parsedData.conversation_update.title,
-                          is_new: false // Explicitly set to false
+                          ...parsedData.conversation_update,
+                          is_new: false  // Explicitly set to false when getting an update
                         }
                       : conv
                   )
@@ -277,8 +341,8 @@ export function useChatState() {
   
               if (parsedData.user_message_id && !userMessageId) {
                 userMessageId = parsedData.user_message_id;
-                setMessages((prev) =>
-                  prev.map((msg) =>
+                setMessages(prev =>
+                  prev.map(msg =>
                     msg.id === -2 ? { ...msg, id: userMessageId! } : msg
                   )
                 );
@@ -286,24 +350,41 @@ export function useChatState() {
   
               if (parsedData.bot_message_id && !botMessageId) {
                 botMessageId = parsedData.bot_message_id;
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === -1 ? { ...msg, id: botMessageId! } : msg
-                  )
-                );
+                if (botMessageId !== null) {
+                  const updatedBotMessage: Message = {
+                    id: botMessageId,
+                    content: '',
+                    sender: 'bot',
+                    timestamp: new Date().toISOString(),
+                    isEdited: false,
+                    conversation_id: currentConversationId,
+                    restaurant_search: restaurantSearch
+                  };
+                  
+                  setMessages(prev =>
+                    prev.map(msg =>
+                      msg.id === -1 ? updatedBotMessage : msg
+                    )
+                  );
+                  console.log('Created bot message with ID and restaurant data:', updatedBotMessage);
+                }
               }
   
               if (parsedData.content) {
-                setMessages((prev) => {
+                setMessages(prev => {
                   const newMessages = [...prev];
                   const lastMessage = newMessages[newMessages.length - 1];
                   if (lastMessage && lastMessage.sender === 'bot') {
-                    lastMessage.content += parsedData.content;
-                    if (botMessageId) {
-                      lastMessage.id = botMessageId;
-                    }
+                    const updatedMessage: Message = {
+                      ...lastMessage,
+                      content: lastMessage.content + parsedData.content,
+                      id: botMessageId ?? lastMessage.id,
+                      restaurant_search: restaurantSearch ?? lastMessage.restaurant_search
+                    };
+                    console.log('Updated message with content and restaurant data:', updatedMessage);
+                    newMessages[newMessages.length - 1] = updatedMessage;
                   }
-                  return newMessages;
+                  return [...newMessages]; // Force a new array reference
                 });
               }
             } catch (e) {
@@ -312,27 +393,47 @@ export function useChatState() {
           }
         }
       }
-  
+      
+      // Handle any remaining incomplete chunk
       if (incompleteChunk) {
         try {
           const parsedData = JSON.parse(incompleteChunk);
           if (parsedData.content) {
-            setMessages((prev) => {
+            setMessages(prev => {
               const newMessages = [...prev];
               const lastMessage = newMessages[newMessages.length - 1];
               if (lastMessage && lastMessage.sender === 'bot') {
-                lastMessage.content += parsedData.content;
-                if (botMessageId) {
-                  lastMessage.id = botMessageId;
-                }
+                const updatedMessage: Message = {
+                  ...lastMessage,
+                  content: lastMessage.content + parsedData.content,
+                  restaurant_search: restaurantSearch ?? lastMessage.restaurant_search
+                };
+                newMessages[newMessages.length - 1] = updatedMessage;
+                console.log('Final message state with restaurant data:', updatedMessage);
               }
-              return newMessages;
+              return [...newMessages];
             });
           }
         } catch (e) {
           console.error('Error parsing incomplete chunk:', e);
         }
       }
+      
+      // Final state check
+      setMessages(prev => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage && lastMessage.sender === 'bot' && restaurantSearch) {
+          console.log('Final check - ensuring restaurant data is present:', restaurantSearch);
+          return prev.map((msg, index) =>
+            index === prev.length - 1
+              ? { ...msg, restaurant_search: restaurantSearch }
+              : msg
+          );
+        }
+        return prev;
+      });
+      
+      console.log('Message stream processing completed');
     } catch (err) {
       setError('Failed to send message');
       console.error(err);
@@ -353,9 +454,10 @@ export function useChatState() {
       
       if (!response.ok) throw new Error('Failed to edit message');
       
-      const updatedMessage = await response.json();
+      const rawMessage = await response.json();
+      const processedMessage = processMessage(rawMessage);
       setMessages(prev =>
-        prev.map(msg => msg.id === id ? updatedMessage : msg)
+        prev.map(msg => msg.id === id ? processedMessage : msg)
       );
     } catch (err) {
       setError('Failed to edit message');

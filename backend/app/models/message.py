@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, field_validator
+import json
 
 class UserBase(BaseModel):
     email: str
@@ -29,12 +30,27 @@ class MessageUpdate(MessageBase):
 class Message(MessageBase):
     id: int
     conversation_id: int
-    sender: str  # 'user' or 'bot'
+    sender: str
     timestamp: datetime
     is_edited: bool = False
+    restaurant_search: Optional[Dict[str, Any]] = None
+
+    @field_validator('restaurant_search', mode='before')
+    @classmethod
+    def parse_restaurant_search(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                print(f"Error decoding restaurant_search: {v}")
+                return None
+        return v
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            datetime: lambda dt: dt.isoformat()
+        }
 
 class ConversationBase(BaseModel):
     title: str
@@ -50,7 +66,7 @@ class Conversation(ConversationBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     is_active: bool
-    is_new: bool  # Explicitly include is_new
+    is_new: bool
     user_id: str
 
     class Config:

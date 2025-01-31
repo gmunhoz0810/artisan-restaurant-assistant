@@ -20,12 +20,54 @@ import json
 router = APIRouter()
 chat_service = ChatService()
 
-@router.get("/conversations", response_model=List[ConversationWithMessages])
+@router.get("/conversations/{conversation_id}")
+async def get_conversation(
+    conversation_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    conversation = (
+        db.query(ConversationModel)
+        .filter(
+            ConversationModel.id == conversation_id,
+            ConversationModel.user_id == current_user.id
+        )
+        .first()
+    )
+    
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    # Simply convert messages to dict, treating restaurant_search just like any other field
+    messages = [{
+        "id": msg.id,
+        "content": msg.content,
+        "sender": msg.sender,
+        "timestamp": msg.timestamp,
+        "is_edited": msg.is_edited,
+        "conversation_id": msg.conversation_id,
+        "restaurant_search": msg.load_restaurant_search()  # Simple load
+    } for msg in conversation.messages]
+    
+    return {
+        "id": conversation.id,
+        "title": conversation.title,
+        "created_at": conversation.created_at,
+        "updated_at": conversation.updated_at,
+        "is_active": conversation.is_active,
+        "is_new": conversation.is_new,
+        "user_id": conversation.user_id,
+        "messages": messages
+    }
+
+@router.get("/conversations")
 async def get_conversations(
     current_user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all conversations for current user"""
+    """Get all conversations for the user"""
+    print("\n=== LOADING ALL CONVERSATIONS ===")
+    
     conversations = (
         db.query(ConversationModel)
         .filter(ConversationModel.user_id == current_user.id)
@@ -33,26 +75,43 @@ async def get_conversations(
         .all()
     )
     
-    print("\n=== GET CONVERSATIONS ===")
+    result = []
     for conv in conversations:
-        print(f"Conversation {conv.id}: title='{conv.title}', is_new={conv.is_new}, is_active={conv.is_active}")
-        message_count = db.query(MessageModel).filter(MessageModel.conversation_id == conv.id).count()
-        print(f"  Message count: {message_count}")
-    
-    # Explicitly include is_new in the response for each conversation
-    return [
-        {
+        messages = []
+        for msg in conv.messages:
+            # Print raw data for debugging
+            print(f"\nMessage {msg.id}:")
+            print(f"Content type: {msg.sender}")
+            print(f"Raw restaurant_search: {msg.restaurant_search}")
+            
+            message_dict = {
+                "id": msg.id,
+                "content": msg.content,
+                "sender": msg.sender,
+                "timestamp": msg.timestamp,
+                "is_edited": msg.is_edited,
+                "conversation_id": msg.conversation_id,
+                "restaurant_search": msg.load_restaurant_search()
+            }
+            
+            # Print processed data
+            print(f"Processed restaurant_search: {message_dict['restaurant_search']}")
+            messages.append(message_dict)
+            
+        conv_dict = {
             "id": conv.id,
             "title": conv.title,
             "created_at": conv.created_at,
             "updated_at": conv.updated_at,
             "is_active": conv.is_active,
-            "is_new": conv.is_new,  # Explicitly include is_new
+            "is_new": conv.is_new,
             "user_id": conv.user_id,
-            "messages": conv.messages
+            "messages": messages
         }
-        for conv in conversations
-    ]
+        result.append(conv_dict)
+    
+    return result
+
 
 @router.post("/new-conversation")
 async def create_new_conversation(
@@ -66,13 +125,46 @@ async def create_new_conversation(
         for conv in existing_convs:
             print(f"Existing conversation {conv.id}: is_new={conv.is_new}, is_active={conv.is_active}")
 
-        # Only update is_active flag
+        # First check for any existing new conversations
+        existing_new = db.query(ConversationModel)\
+            .filter(
+                ConversationModel.user_id == current_user.id,
+                ConversationModel.is_new == True
+            )\
+            .first()
+
+        if existing_new:
+            print(f"Found existing new conversation: {existing_new.id}. Redirecting there.")
+            # Deactivate all other conversations
+            db.query(ConversationModel)\
+                .filter(
+                    ConversationModel.user_id == current_user.id,
+                    ConversationModel.is_active == True
+                )\
+                .update({ConversationModel.is_active: False}, synchronize_session='fetch')
+            
+            # Activate the existing new conversation
+            existing_new.is_active = True
+            db.commit()
+
+            return {
+                "id": existing_new.id,
+                "title": existing_new.title,
+                "created_at": existing_new.created_at.isoformat(),
+                "is_active": True,
+                "is_new": True,
+                "messages": []
+            }
+
+        print("No existing new conversation found. Creating new one.")
+
+        # Deactivate all existing conversations
         db.query(ConversationModel)\
-          .filter(
-              ConversationModel.user_id == current_user.id,
-              ConversationModel.is_active == True
-          )\
-          .update({ConversationModel.is_active: False}, synchronize_session='fetch')
+            .filter(
+                ConversationModel.user_id == current_user.id,
+                ConversationModel.is_active == True
+            )\
+            .update({ConversationModel.is_active: False}, synchronize_session='fetch')
 
         # Create new conversation
         new_conversation = ConversationModel(
@@ -90,11 +182,10 @@ async def create_new_conversation(
         for conv in all_convs:
             print(f"Conversation {conv.id}: is_new={conv.is_new}, is_active={conv.is_active}")
 
-        # Return full conversation data
         return {
             "id": new_conversation.id,
             "title": new_conversation.title,
-            "is_new": new_conversation.is_new,  # Explicitly include is_new
+            "is_new": new_conversation.is_new,
             "is_active": new_conversation.is_active,
             "created_at": new_conversation.created_at.isoformat(),
             "messages": []
@@ -107,6 +198,7 @@ async def create_new_conversation(
             status_code=500,
             detail=f"Failed to create conversation: {str(e)}"
         )
+
 
 @router.post("/conversations/{conversation_id}/activate")
 async def activate_conversation(
@@ -142,46 +234,13 @@ async def activate_conversation(
             "status": "success",
             "conversation": {
                 "id": conversation.id,
-                "is_new": conversation.is_new,  # Include is_new in response
+                "is_new": conversation.is_new,
                 "is_active": True
             }
         }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/conversations/{conversation_id}", response_model=ConversationWithMessages)
-async def get_conversation(
-    conversation_id: int,
-    current_user: UserModel = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get a specific conversation and its messages"""
-    conversation = (
-        db.query(ConversationModel)
-        .filter(
-            ConversationModel.id == conversation_id,
-            ConversationModel.user_id == current_user.id
-        )
-        .first()
-    )
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    
-    print(f"\n=== GET CONVERSATION {conversation_id} ===")
-    print(f"State: is_new={conversation.is_new}, title='{conversation.title}'")
-    
-    # Return with explicit is_new flag
-    return {
-        "id": conversation.id,
-        "title": conversation.title,
-        "created_at": conversation.created_at,
-        "updated_at": conversation.updated_at,
-        "is_active": conversation.is_active,
-        "is_new": conversation.is_new,  # Explicitly include is_new
-        "user_id": conversation.user_id,
-        "messages": conversation.messages
-    }
 
 @router.delete("/conversations/{conversation_id}")
 async def delete_conversation(
@@ -213,139 +272,168 @@ async def create_streaming_message(
 ):
     """Stream message responses"""
     try:
-        conversation = None
-        user_msg_id = None
-        bot_msg_id = None
-        conv_id = None
-        thread_id = None
-        conversation_updated = False
-        final_update_data = None
-
-        with SessionLocal() as temp_db:
-            conversation = temp_db.query(ConversationModel)\
+        print(f"\n=== STREAM START ===")
+        conversation_update = None
+        
+        # Get conversation first
+        conversation = (
+            db.query(ConversationModel)
+            .filter(
+                ConversationModel.id == message.conversation_id,
+                ConversationModel.user_id == current_user.id
+            )
+            .first()
+        )
+                
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        # Store necessary values
+        conversation_id = conversation.id
+        thread_id = conversation.thread_id
+        
+        print(f"Processing message for conversation {conversation_id}")
+        
+        # Create user message
+        db_message = MessageModel(
+            content=message.content,
+            sender="user",
+            conversation_id=conversation_id
+        )
+        db.add(db_message)
+        
+        # Create bot message placeholder
+        bot_message = MessageModel(
+            content="",
+            sender="bot",
+            conversation_id=conversation_id,
+            restaurant_search=None
+        )
+        db.add(bot_message)  # Fixed: was adding db_message twice
+        
+        # If this is a new conversation, update its title immediately
+        if conversation.is_new:
+            # Find the highest conversation number
+            existing_numbers = []
+            all_conversations = db.query(ConversationModel)\
                 .filter(
-                    ConversationModel.id == message.conversation_id,
-                    ConversationModel.user_id == current_user.id
+                    ConversationModel.user_id == current_user.id,
+                    ConversationModel.is_new == False
                 )\
-                .first()
-                
-            if not conversation:
-                raise HTTPException(status_code=404, detail="Conversation not found")
+                .all()
             
-            print(f"\n=== STREAM START ===")
-            print(f"Processing message for conversation {conversation.id}")
-            print(f"Before update: is_new={conversation.is_new}, title='{conversation.title}'")
+            for conv in all_conversations:
+                if conv.title.startswith("Conversation "):
+                    try:
+                        num = int(conv.title.split(" ")[1])
+                        existing_numbers.append(num)
+                    except (ValueError, IndexError):
+                        continue
             
-            # If this is a new conversation, update its title
-            if conversation.is_new:
-                # Find the highest conversation number by parsing existing titles
-                existing_numbers = []
-                all_conversations = temp_db.query(ConversationModel)\
-                    .filter(
-                        ConversationModel.user_id == current_user.id,
-                        ConversationModel.is_new == False
-                    )\
-                    .all()
-                
-                for conv in all_conversations:
-                    if conv.title.startswith("Conversation "):
-                        try:
-                            num = int(conv.title.split(" ")[1])
-                            existing_numbers.append(num)
-                        except (ValueError, IndexError):
-                            continue
-                
-                # Use the next available number
-                next_number = 1
-                if existing_numbers:
-                    next_number = max(existing_numbers) + 1
-                
-                # Update current conversation
-                new_title = f"Conversation {next_number}"
-                conversation.title = new_title
-                conversation.is_new = False
-                temp_db.commit()
-                temp_db.refresh(conversation)
-                conversation_updated = True
-                final_update_data = {
-                    'id': conversation.id,
-                    'title': conversation.title,
-                    'is_new': False
-                }
-                print(f"After update: is_new={conversation.is_new}, title='{conversation.title}'")
+            # Use the next available number
+            next_number = 1
+            if existing_numbers:
+                next_number = max(existing_numbers) + 1
             
-            # Store critical values
-            conv_id = conversation.id
-            thread_id = conversation.thread_id
-            
-            # Create user message
-            db_message = MessageModel(
-                content=message.content,
-                sender="user",
-                conversation_id=conv_id
-            )
-            temp_db.add(db_message)
-            
-            # Create bot message placeholder
-            bot_message = MessageModel(
-                content="",
-                sender="bot",
-                conversation_id=conv_id
-            )
-            temp_db.add(bot_message)
-            temp_db.commit()
-            temp_db.refresh(db_message)
-            temp_db.refresh(bot_message)
-            
-            user_msg_id = db_message.id
-            bot_msg_id = bot_message.id
+            # Update conversation
+            new_title = f"Conversation {next_number}"
+            conversation.title = new_title
+            conversation.is_new = False
+            conversation_update = {
+                'id': conversation_id,
+                'title': new_title,
+                'is_new': False
+            }
+        
+        # Commit all changes before proceeding
+        db.commit()
+        db.refresh(db_message)
+        db.refresh(bot_message)
+        db.refresh(conversation)
+        
+        user_msg_id = db_message.id
+        bot_msg_id = bot_message.id
+        
+        print(f"Created messages - User: {user_msg_id}, Bot: {bot_msg_id}")
 
-        # Create the streaming response
         async def generate():
-            chunk = None
+            nonlocal conversation_update
             try:
                 # Send initial IDs
                 yield f"data: {json.dumps({'user_message_id': user_msg_id})}\n\n"
                 yield f"data: {json.dumps({'bot_message_id': bot_msg_id})}\n\n"
                 
-                # If conversation was updated, send that info immediately
-                if conversation_updated and final_update_data:
-                    yield f"data: {json.dumps({'conversation_update': final_update_data})}\n\n"
-
-                # Get streaming response
+                # Send conversation update immediately if needed
+                if conversation_update:
+                    yield f"data: {json.dumps({'conversation_update': conversation_update})}\n\n"
+                
+                restaurant_search_data = None
+                accumulated_content = []
+                
+                # Get the streaming response object
                 response = await chat_service.get_streaming_response(
-                    conversation_id=conv_id,
+                    conversation_id=conversation_id,
                     thread_id=thread_id,
                     message=message.content,
                     db=db
                 )
-
-                accumulated_content = []
+                
+                # Process the response stream
                 async for chunk in response.body_iterator:
+                    if isinstance(chunk, bytes):
+                        chunk = chunk.decode()
+                        
                     if chunk.startswith('data: '):
                         try:
                             data = json.loads(chunk[6:])
+                            
+                            # Handle restaurant search
+                            if 'restaurant_search' in data:
+                                restaurant_search_data = data['restaurant_search']
+                                print(f"\n=== SAVING RESTAURANT SEARCH ===")
+                                print(f"Data: {restaurant_search_data}")
+                                
+                                with SessionLocal() as update_db:
+                                    bot_msg = update_db.query(MessageModel).get(bot_msg_id)
+                                    if bot_msg:
+                                        bot_msg.save_restaurant_search(restaurant_search_data)
+                                        update_db.commit()
+                                
+                                yield chunk
+
+                            # Handle content
                             if 'content' in data:
                                 accumulated_content.append(data['content'])
-                        except json.JSONDecodeError:
-                            pass
-                    
-                    yield chunk
-                    
+                                yield chunk
+
+                        except json.JSONDecodeError as e:
+                            print(f"Error decoding chunk: {e}")
+                            
+                    else:
+                        yield chunk
+
                     if chunk.startswith('data: [DONE]'):
                         with SessionLocal() as final_db:
-                            bot_message = final_db.query(MessageModel).get(bot_msg_id)
-                            if bot_message:
-                                bot_message.content = ''.join(accumulated_content).strip()
+                            bot_msg = final_db.query(MessageModel).get(bot_msg_id)
+                            if bot_msg:
+                                if accumulated_content:
+                                    bot_msg.content = ''.join(accumulated_content).strip()
+                                if restaurant_search_data:
+                                    bot_msg.save_restaurant_search(restaurant_search_data)
                                 final_db.commit()
+                                
+                                # Final verification
+                                final_db.refresh(bot_msg)
+                                print(f"\n=== FINAL MESSAGE STATE ===")
+                                print(f"Content length: {len(bot_msg.content)}")
+                                print(f"Restaurant search data: {bot_msg.restaurant_search}")
+                
+                yield "data: [DONE]\n\n"
 
             except Exception as e:
                 print(f"Stream error: {e}")
-                yield f"data: {json.dumps({'error': 'Stream failed'})}\n\n"
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
                 yield "data: [DONE]\n\n"
-            finally:
-                if chunk is None or not chunk.startswith('data: [DONE]'):
-                    yield "data: [DONE]\n\n"
 
         return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -361,7 +449,6 @@ async def update_message(
     db: Session = Depends(get_db)
 ):
     """Update a message"""
-    # First get the message and verify it belongs to the user
     db_message = db.query(MessageModel)\
         .join(ConversationModel)\
         .filter(
@@ -388,7 +475,6 @@ async def delete_message(
     db: Session = Depends(get_db)
 ):
     """Delete a message"""
-    # First get the message and verify it belongs to the user
     db_message = db.query(MessageModel)\
         .join(ConversationModel)\
         .filter(

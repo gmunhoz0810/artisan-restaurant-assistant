@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Markdown from 'react-markdown';
+import type { YelpSearchParams } from '../../services/yelp';
+import RestaurantMessageContent from './RestaurantMessageContent';
 
 interface MessageBubbleProps {
   content: string;
@@ -8,14 +10,7 @@ interface MessageBubbleProps {
   isEdited: boolean;
   onEdit?: (content: string) => void;
   onDelete?: () => void;
-}
-
-// Add this interface to fix the TypeScript error
-interface CodeComponentProps {
-  inline?: boolean;
-  node?: any;
-  children?: React.ReactNode;
-  className?: string;
+  restaurant_search?: YelpSearchParams & { k?: number };
 }
 
 export const MessageBubble = ({
@@ -24,7 +19,8 @@ export const MessageBubble = ({
   timestamp,
   isEdited,
   onEdit,
-  onDelete
+  onDelete,
+  restaurant_search
 }: MessageBubbleProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
@@ -100,73 +96,16 @@ export const MessageBubble = ({
               <p className="whitespace-pre-wrap break-words">{content}</p>
             ) : (
               <div className="prose prose-sm max-w-none prose-neutral prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-headings:my-2 overflow-x-auto">
-                <Markdown components={{
-                  // Style links
-                  a: ({ node, ...props }) => (
-                    <a {...props} className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer" />
-                  ),
-                  // Style paragraphs
-                  p: ({ node, ...props }) => (
-                    <p {...props} className="mb-2 last:mb-0" />
-                  ),
-                  // Style lists
-                  ul: ({ node, ...props }) => (
-                    <ul {...props} className="list-disc pl-4 mb-2 last:mb-0" />
-                  ),
-                  ol: ({ node, ...props }) => (
-                    <ol {...props} className="list-decimal pl-4 mb-2 last:mb-0" />
-                  ),
-                  // Style list items
-                  li: ({ node, ...props }) => (
-                    <li {...props} className="mb-1 last:mb-0" />
-                  ),
-                  // Style code blocks
-                  pre: ({ node, ...props }) => (
-                    <pre {...props} className="overflow-x-auto bg-gray-200 p-2 rounded-lg text-sm my-2 whitespace-pre" style={{ maxWidth: '100%' }} />
-                  ),
-                  code: ({ node, inline, ...props }: CodeComponentProps) => (
-                    inline 
-                      ? <code {...props} className="bg-gray-200 px-1 py-0.5 rounded text-sm" />
-                      : <code {...props} className="break-words whitespace-pre-wrap text-sm" />
-                  ),
-                  // Style blockquotes
-                  blockquote: ({ node, ...props }) => (
-                    <blockquote {...props} className="border-l-4 border-gray-300 pl-4 italic my-2" />
-                  ),
-                  // Style headings
-                  h1: ({ node, ...props }) => (
-                    <h1 {...props} className="text-xl font-bold mb-2" />
-                  ),
-                  h2: ({ node, ...props }) => (
-                    <h2 {...props} className="text-lg font-bold mb-2" />
-                  ),
-                  h3: ({ node, ...props }) => (
-                    <h3 {...props} className="text-base font-bold mb-2" />
-                  ),
-                  // Style tables
-                  table: ({ node, ...props }) => (
-                    <div className="overflow-x-auto my-2">
-                      <table {...props} className="min-w-full border-collapse border border-gray-300" />
-                    </div>
-                  ),
-                  thead: ({ node, ...props }) => (
-                    <thead {...props} className="bg-gray-200" />
-                  ),
-                  tbody: ({ node, ...props }) => (
-                    <tbody {...props} className="bg-white" />
-                  ),
-                  tr: ({ node, ...props }) => (
-                    <tr {...props} className="border-b border-gray-300" />
-                  ),
-                  th: ({ node, ...props }) => (
-                    <th {...props} className="border border-gray-300 px-4 py-2 text-left" />
-                  ),
-                  td: ({ node, ...props }) => (
-                    <td {...props} className="border border-gray-300 px-4 py-2" />
-                  ),
-                }}>
-                  {content}
-                </Markdown>
+                <Markdown>{content}</Markdown>
+
+                {restaurant_search && Object.keys(restaurant_search).length > 0 && (
+                  <div className="mt-4">
+                    <RestaurantMessageContent 
+                      searchParams={restaurant_search} 
+                      key={JSON.stringify(restaurant_search)}
+                    />
+                  </div>
+                )}
               </div>
             )}
             {isUser && (
@@ -196,5 +135,3 @@ export const MessageBubble = ({
     </div>
   );
 };
-
-export default MessageBubble;

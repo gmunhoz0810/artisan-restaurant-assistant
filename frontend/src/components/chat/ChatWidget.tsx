@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import Header from './Header';
-import MessageBubble from './MessageBubble';
+import { MessageBubble } from './MessageBubble.tsx';
 import ChatInput from './ChatInput';
 import ConversationSidebar from './ConversationSidebar';
 import SidebarToggle from './SidebarToggle';
@@ -129,7 +129,7 @@ const ChatWidget = () => {
               <MessageBubble
                 key={`${message.id}-${message.isEdited}-${currentConversationId}`}
                 {...message}
-                onEdit={message.sender === 'user' ? (content) => handleEditMessage(message.id, content) : undefined}
+                onEdit={message.sender === 'user' ? (content: string) => handleEditMessage(message.id, content) : undefined}
                 onDelete={message.sender === 'user' ? () => handleDeleteMessage(message.id) : undefined}
               />
             ))
