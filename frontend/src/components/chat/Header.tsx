@@ -6,9 +6,18 @@ interface HeaderProps {
     onClose: () => void;
     onNewConversation?: () => void;
     isSidebarExpanded: boolean;
+    isFullscreen: boolean;
+    onToggleFullscreen: () => void;
 }
 
-const Header = ({ onMinimize, onClose, onNewConversation, isSidebarExpanded }: HeaderProps) => {
+const Header = ({ 
+    onMinimize, 
+    onClose, 
+    onNewConversation, 
+    isSidebarExpanded,
+    isFullscreen,
+    onToggleFullscreen 
+}: HeaderProps) => {
     const { user, logout } = useAuth();
     const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
 
@@ -30,16 +39,61 @@ const Header = ({ onMinimize, onClose, onNewConversation, isSidebarExpanded }: H
 
     return (
         <>
-            <div className="relative px-4 pt-6 pb-4 border-b bg-white">
-                {/* Top row with action buttons */}
-                <div className="absolute top-2 right-4 flex items-center gap-2">
-                    {user && (
-                        <>
-                            {onNewConversation && (
+            <div className={`relative px-4 ${isFullscreen ? 'pt-2' : 'pt-6'} pb-4 border-b bg-white`}>
+                <div className="flex justify-between items-center absolute w-full left-0 px-4" style={{ top: '8px' }}>
+                    <button
+                        onClick={onToggleFullscreen}
+                        className="p-2 text-gray-500 hover:bg-gray-50 rounded-full transition-all duration-200 group relative border border-gray-200 hover:border-gray-300 cursor-pointer ml-0"
+                        aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                    >
+                        {isFullscreen ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 4l-6 6M4 20l6-6" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 10V4h-6M4 14v6h6" />
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20l6-6M20 4l-6 6" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 14v6h6M20 10V4h-6" />
+                            </svg>
+                        )}
+                        <span className="absolute -bottom-8 left-4 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                            {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                        </span>
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                        {user && (
+                            <>
+                                {onNewConversation && (
+                                    <button
+                                        onClick={onNewConversation}
+                                        className="p-2 text-purple-600 hover:bg-purple-50 rounded-full transition-all duration-200 group relative border border-purple-200 hover:border-purple-300 cursor-pointer"
+                                        aria-label="New Chat"
+                                    >
+                                        <svg 
+                                            xmlns="http://www.w3.org/2000/svg" 
+                                            className="h-5 w-5" 
+                                            fill="none" 
+                                            viewBox="0 0 24 24" 
+                                            stroke="currentColor"
+                                        >
+                                            <path 
+                                                strokeLinecap="round" 
+                                                strokeLinejoin="round" 
+                                                strokeWidth={2} 
+                                                d="M12 4v16m8-8H4" 
+                                            />
+                                        </svg>
+                                        <span className="absolute -bottom-8 right-0 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                                            New Chat
+                                        </span>
+                                    </button>
+                                )}
                                 <button
-                                    onClick={onNewConversation}
-                                    className="p-2 text-purple-600 hover:bg-purple-50 rounded-full transition-all duration-200 group relative border border-purple-200 hover:border-purple-300 cursor-pointer"
-                                    aria-label="New Chat"
+                                    onClick={handleSignOutClick}
+                                    className="p-2 text-gray-500 hover:bg-gray-50 rounded-full transition-all duration-200 group relative border border-gray-200 hover:border-gray-300 cursor-pointer"
+                                    aria-label="Sign Out"
                                 >
                                     <svg 
                                         xmlns="http://www.w3.org/2000/svg" 
@@ -52,66 +106,44 @@ const Header = ({ onMinimize, onClose, onNewConversation, isSidebarExpanded }: H
                                             strokeLinecap="round" 
                                             strokeLinejoin="round" 
                                             strokeWidth={2} 
-                                            d="M12 4v16m8-8H4" 
+                                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
                                         />
                                     </svg>
                                     <span className="absolute -bottom-8 right-0 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
-                                        New Chat
+                                        Sign Out
                                     </span>
                                 </button>
-                            )}
-                            <button
-                                onClick={handleSignOutClick}
-                                className="p-2 text-gray-500 hover:bg-gray-50 rounded-full transition-all duration-200 group relative border border-gray-200 hover:border-gray-300 cursor-pointer"
-                                aria-label="Sign Out"
-                            >
-                                <svg 
-                                    xmlns="http://www.w3.org/2000/svg" 
-                                    className="h-5 w-5" 
-                                    fill="none" 
-                                    viewBox="0 0 24 24" 
-                                    stroke="currentColor"
-                                >
-                                    <path 
-                                        strokeLinecap="round" 
-                                        strokeLinejoin="round" 
-                                        strokeWidth={2} 
-                                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" 
-                                    />
-                                </svg>
-                                <span className="absolute -bottom-8 right-0 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
-                                    Sign Out
-                                </span>
-                            </button>
-                            <button
-                                onClick={onClose}
-                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-all duration-200 group relative border border-gray-200 hover:border-gray-300 cursor-pointer"
-                                aria-label="Close Chat"
-                            >
-                                <svg 
-                                    xmlns="http://www.w3.org/2000/svg" 
-                                    className="h-5 w-5" 
-                                    fill="none" 
-                                    viewBox="0 0 24 24" 
-                                    stroke="currentColor"
-                                >
-                                    <path 
-                                        strokeLinecap="round" 
-                                        strokeLinejoin="round" 
-                                        strokeWidth={2} 
-                                        d="M6 18L18 6M6 6l12 12" 
-                                    />
-                                </svg>
-                                <span className="absolute -bottom-8 right-0 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
-                                    Close Chat
-                                </span>
-                            </button>
-                        </>
-                    )}
+                                {!isFullscreen && (
+                                    <button
+                                        onClick={onClose}
+                                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-all duration-200 group relative border border-gray-200 hover:border-gray-300 cursor-pointer"
+                                        aria-label="Close Chat"
+                                    >
+                                        <svg 
+                                            xmlns="http://www.w3.org/2000/svg" 
+                                            className="h-5 w-5" 
+                                            fill="none" 
+                                            viewBox="0 0 24 24" 
+                                            stroke="currentColor"
+                                        >
+                                            <path 
+                                                strokeLinecap="round" 
+                                                strokeLinejoin="round" 
+                                                strokeWidth={2} 
+                                                d="M6 18L18 6M6 6l12 12" 
+                                            />
+                                        </svg>
+                                        <span className="absolute -bottom-8 right-0 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                                            Close Chat
+                                        </span>
+                                    </button>
+                                )}
+                            </>
+                        )}
+                    </div>
                 </div>
 
-                {/* Avatar and welcome message */}
-                <div className="flex flex-col items-center mt-2">
+                <div className={`flex flex-col items-center ${isFullscreen ? 'mt-0' : 'mt-2'}`}>
                     <div className="w-12 h-12 rounded-full mb-2 overflow-hidden">
                         <img
                             src="/ChefAva.png"
@@ -124,7 +156,6 @@ const Header = ({ onMinimize, onClose, onNewConversation, isSidebarExpanded }: H
                 </div>
             </div>
 
-            {/* Sign Out Confirmation Dialog */}
             {signOutDialogOpen && (
                 <div 
                     className="fixed inset-0 flex items-center justify-center z-50"

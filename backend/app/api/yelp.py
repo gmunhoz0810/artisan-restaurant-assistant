@@ -6,7 +6,8 @@ from urllib.parse import unquote
 
 router = APIRouter()
 
-YELP_API_KEY = "Odqhk16xZUt8HJG-kVx1wSN3l5uTOYdXkbqyl4PkdDaGKjTxuIJBzbsygZtHS_atZGF1r548WTee60kbkQaFBxEsbLl8mRNUlWv85l4QXIjtKo3kTfgi9tkj2eGcZ3Yx"
+YELP_API_KEY=os.getenv("YELP_API_KEY")
+
 YELP_API_BASE_URL = "https://api.yelp.com/v3"
 
 def convert_price_to_yelp_format(price: str) -> str:

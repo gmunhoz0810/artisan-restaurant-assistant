@@ -5,9 +5,13 @@ import RestaurantList from '../restaurant/RestaurantList';
 
 interface RestaurantMessageContentProps {
   searchParams: YelpSearchParams;
+  isFullscreen?: boolean;
 }
 
-const RestaurantMessageContent = ({ searchParams }: RestaurantMessageContentProps) => {
+const RestaurantMessageContent = ({ 
+  searchParams,
+  isFullscreen
+}: RestaurantMessageContentProps) => {
   const [businesses, setBusinesses] = useState<YelpBusiness[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +83,7 @@ const RestaurantMessageContent = ({ searchParams }: RestaurantMessageContentProp
   }, [searchParams]);
 
   return (
-    <div>
+    <div className="w-full">
       {isLoading && (
         <div className="flex items-center justify-center py-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -99,7 +103,15 @@ const RestaurantMessageContent = ({ searchParams }: RestaurantMessageContentProp
       )}
 
       {businesses.length > 0 && (
-        <RestaurantList businesses={businesses} className="mt-4" />
+        <div className={`
+          mt-4 w-full
+          ${isFullscreen ? 'px-4' : ''}
+        `}>
+          <RestaurantList 
+            businesses={businesses}
+            isFullscreen={isFullscreen}
+          />
+        </div>
       )}
     </div>
   );
