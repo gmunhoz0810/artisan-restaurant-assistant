@@ -1,3 +1,20 @@
+"""
+chat_service.py
+
+Service layer handling OpenAI API integration and chat functionality.
+Manages conversation threads and AI response generation.
+
+Key Features:
+- OpenAI GPT-4o integration
+- Restaurant search function tools
+- Real-time message streaming
+- Conversation thread management
+- Assistant initialization
+- Error handling and recovery
+- User context preservation
+
+"""
+
 from openai import OpenAI
 import os
 from typing import List, Dict

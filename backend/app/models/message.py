@@ -1,3 +1,25 @@
+"""
+message.py
+
+Pydantic models for message and conversation data validation.
+Defines schemas for API request/response handling.
+
+Models:
+- MessageBase: Base message structure
+- MessageCreate/Update: Input validation
+- Message: Complete message representation
+- Conversation: Conversation management
+- UserBase: User data validation
+
+Features:
+- Data validation
+- Type conversion
+- Restaurant search data parsing
+- Timestamp handling
+- Relationship management
+
+"""
+
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, field_validator

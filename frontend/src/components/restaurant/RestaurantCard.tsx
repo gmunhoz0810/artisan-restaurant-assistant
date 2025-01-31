@@ -1,3 +1,19 @@
+/**
+ * RestaurantCard.tsx
+ * 
+ * Individual restaurant card component displaying Yelp business information.
+ * Manages detailed restaurant information display with photo carousel.
+ * 
+ * Features:
+ * - Photo carousel with navigation controls
+ * - Yelp rating display with dynamic stars
+ * - Business hours and pricing information
+ * - Click-through to Yelp business page
+ * - Location and category display
+ * - Responsive image handling with error states
+ * - Support for both fullscreen and compact modes
+ */
+
 import { useState } from 'react';
 import type { YelpBusiness } from '../../services/yelp';
 import { yelpService } from '../../services/yelp';

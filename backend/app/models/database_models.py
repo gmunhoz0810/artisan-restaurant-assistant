@@ -1,3 +1,23 @@
+"""
+database_models.py
+
+SQLAlchemy database models for the application.
+Defines the database schema and relationships.
+
+Models:
+- User: Stores Google user information
+- Conversation: Manages chat conversations
+- Message: Stores chat messages with restaurant data
+- 
+Key Features:
+- User-Conversation relationship
+- Message-Conversation relationship
+- Restaurant search data serialization
+- Timestamp handling
+- Conversation state tracking
+
+"""
+
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func

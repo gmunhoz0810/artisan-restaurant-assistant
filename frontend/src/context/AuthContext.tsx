@@ -1,3 +1,19 @@
+/**
+ * AuthContext.tsx
+ * 
+ * Authentication context provider using Google OAuth.
+ * Manages user authentication state and token handling throughout the application.
+ * 
+ * Features:
+ * - Google OAuth integration
+ * - User session management
+ * - Automatic token refresh
+ * - Login state persistence
+ * - User profile information management
+ * - Error handling for auth failures
+ * - Automatic sign-in with stored credentials
+ */
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, getStoredToken, loginWithGoogle, removeStoredToken } from '../services/auth';
 

@@ -1,3 +1,18 @@
+/**
+ * ChatInput.tsx
+ * 
+ * Message input component with user avatar integration and send functionality.
+ * Provides real-time message input with support for multiline text.
+ * 
+ * Features:
+ * - Message sending with Enter key support
+ * - Loading state handling during message processing
+ * - Google profile picture integration
+ * - Fallback avatar with user initials
+ * - Disabled state handling during processing
+ * - Mobile-responsive design
+ */
+
 import { useState, KeyboardEvent } from 'react';
 import { useAuth } from '../../context/AuthContext';
 

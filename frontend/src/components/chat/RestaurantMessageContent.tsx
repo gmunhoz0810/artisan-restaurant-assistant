@@ -1,3 +1,18 @@
+/**
+ * RestaurantMessageContent.tsx
+ * 
+ * Handles the display of restaurant search results within chat messages.
+ * Manages data fetching and presentation of Yelp restaurant information.
+ * 
+ * Features:
+ * - Asynchronous restaurant data loading
+ * - Restaurant search result caching
+ * - Loading state management
+ * - Error handling for API failures
+ * - Responsive layout for different screen sizes
+ * - Integration with Yelp business data
+ */
+
 import { useEffect, useState, useRef } from 'react';
 import type { YelpBusiness, YelpSearchParams } from '../../services/yelp';
 import { yelpService } from '../../services/yelp';

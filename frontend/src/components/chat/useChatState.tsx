@@ -1,3 +1,23 @@
+/**
+ * useChatState.tsx
+ * 
+ * Custom hook that manages the chat application's state and business logic.
+ * Handles all chat operations including message management and conversation handling.
+ * 
+ * Key Functionalities:
+ * - Message operations (send, edit, delete)
+ * - Conversation management (create, switch, delete)
+ * - Real-time message streaming with OpenAI
+ * - Restaurant search result handling
+ * - Authentication state integration
+ * 
+ * State Management:
+ * - Current conversation tracking
+ * - Message history
+ * - Loading and error states
+ * - Restaurant search data persistence
+ */
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { YelpSearchParams } from '../../services/yelp';

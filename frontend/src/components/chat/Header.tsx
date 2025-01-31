@@ -1,3 +1,18 @@
+/**
+ * Header.tsx
+ * 
+ * Chat interface header component with user controls and branding.
+ * Manages chat window controls and user authentication state.
+ * 
+ * Features:
+ * - Window controls (minimize/maximize/close)
+ * - Fullscreen toggle
+ * - New conversation button
+ * - Sign out functionality with confirmation
+ * - Chef Ava branding display
+ * - Responsive design adaptation
+ */
+
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 

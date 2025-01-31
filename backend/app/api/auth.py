@@ -1,3 +1,19 @@
+"""
+auth.py
+
+FastAPI router handling Google OAuth authentication processes.
+Manages user authentication, token verification, and user profile data.
+
+Key Features:
+- Google OAuth token verification
+- User profile creation and updates
+- Session token management
+- Database user persistence
+- Error handling for auth failures
+- Automatic user profile syncing with Google data
+
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from google.oauth2 import id_token

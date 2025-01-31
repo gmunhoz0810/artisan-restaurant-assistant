@@ -1,4 +1,23 @@
-// ChatWidget.tsx
+/**
+ * ChatWidget.tsx
+ * 
+ * Main chat interface component that orchestrates the entire chat experience.
+ * Handles the display and management of messages, conversations, and the chat UI.
+ * 
+ * Key Features:
+ * - Manages chat window state (minimized/fullscreen)
+ * - Handles conversation sidebar toggle
+ * - Implements real-time message streaming
+ * - Manages message display and scrolling
+ * - Integrates restaurant search results display
+ * 
+ * Component States:
+ * - Minimized: Shows only the Chef Ava icon
+ * - Regular: Shows standard chat window
+ * - Fullscreen: Expands to fill the entire screen
+ * - Sidebar: Can be expanded/collapsed in regular mode
+ */
+
 import { useRef, useState, useEffect } from 'react';
 import Header from './Header';
 import { MessageBubble } from './MessageBubble.tsx';

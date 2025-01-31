@@ -1,3 +1,20 @@
+"""
+yelp.py
+
+FastAPI router managing all Yelp API integrations.
+Handles restaurant searches, business details, and data formatting.
+
+Key Features:
+- Restaurant search with multiple parameters
+- Business details retrieval
+- Image proxy handling for CORS
+- Search result filtering and sorting
+- Error handling for API failures
+- Request retrying for reliability
+- Data caching for performance
+
+"""
+
 from fastapi import APIRouter, HTTPException, Response
 from typing import Optional, List
 import httpx

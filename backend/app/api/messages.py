@@ -1,3 +1,20 @@
+"""
+messages.py
+
+FastAPI router handling all chat message operations and conversation management.
+Manages real-time message streaming, conversation state, and message persistence.
+
+Key Features:
+- Real-time message streaming with OpenAI
+- Conversation CRUD operations
+- Message editing and deletion
+- Restaurant search result handling
+- User-specific conversation management
+- Message history persistence
+- Authentication integration for secure access
+
+"""
+
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session

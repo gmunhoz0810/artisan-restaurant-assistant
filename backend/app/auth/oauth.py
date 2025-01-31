@@ -1,3 +1,19 @@
+"""
+oauth.py
+
+OAuth authentication utilities and middleware for FastAPI.
+Handles Google token verification and user authentication.
+
+Key Features:
+- Google token verification
+- User authentication middleware
+- Token validation checks
+- User session management
+- Error handling for invalid tokens
+- Integration with database user model
+
+"""
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2AuthorizationCodeBearer
 from google.oauth2 import id_token

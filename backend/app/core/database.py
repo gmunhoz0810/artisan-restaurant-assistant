@@ -1,3 +1,19 @@
+"""
+database.py
+
+Core database configuration and session management.
+Sets up SQLite database connection and provides session utilities.
+
+Features:
+- SQLite database configuration
+- SQLAlchemy session management
+- Connection pooling
+- Session context management
+- Database initialization
+- Thread-safe session handling
+
+"""
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker

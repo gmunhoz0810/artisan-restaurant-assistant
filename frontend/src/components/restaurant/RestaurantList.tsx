@@ -1,3 +1,18 @@
+/**
+ * RestaurantList.tsx
+ * 
+ * Displays a collection of restaurant cards from Yelp search results.
+ * Handles different layout modes for regular and fullscreen views.
+ * 
+ * Features:
+ * - Grid/list layout management
+ * - Responsive design with breakpoints
+ * - Dynamic layout based on screen size
+ * - Handles single and multiple restaurant displays
+ * - Automatic spacing and alignment
+ * - Visual hierarchy for search results
+ */
+
 import type { YelpBusiness } from '../../services/yelp';
 import RestaurantCard from './RestaurantCard';
 

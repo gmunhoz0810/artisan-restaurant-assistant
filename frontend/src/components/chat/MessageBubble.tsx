@@ -1,3 +1,18 @@
+/**
+ * MessageBubble.tsx
+ * 
+ * Renders individual chat messages with different styles for user and bot messages.
+ * Handles message interactions and restaurant search result display.
+ * 
+ * Features:
+ * - Different styling for user/bot messages
+ * - Message editing functionality (user messages only)
+ * - Message deletion
+ * - Markdown rendering for bot messages
+ * - Restaurant search result integration
+ * - Responsive design in both regular and fullscreen modes
+ */
+
 import React, { useState } from 'react';
 import Markdown from 'react-markdown';
 import type { YelpSearchParams } from '../../services/yelp';

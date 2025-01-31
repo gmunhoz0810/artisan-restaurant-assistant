@@ -1,3 +1,19 @@
+/**
+ * ConversationSidebar.tsx
+ * 
+ * Manages the display and interaction of chat conversations.
+ * Provides a sidebar interface for switching between different chat sessions.
+ * 
+ * Features:
+ * - Conversation list display
+ * - Active conversation highlighting
+ * - New conversation creation
+ * - Conversation deletion with confirmation
+ * - Conversation timestamps
+ * - Visual indicators for new/active conversations
+ * - Processing state management
+ */
+
 import { Conversation } from './useChatState';
 import { useState } from 'react';
 

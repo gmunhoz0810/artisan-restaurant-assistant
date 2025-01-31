@@ -1,3 +1,18 @@
+/**
+ * LoginPage.tsx
+ * 
+ * Google authentication login page component.
+ * Handles user authentication flow with Google Identity Services.
+ * 
+ * Features:
+ * - Google Sign-In button integration
+ * - OAuth credential handling
+ * - Loading state management
+ * - Error state handling
+ * - Responsive design
+ * - Automatic redirect after successful login
+ */
+
 import { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 

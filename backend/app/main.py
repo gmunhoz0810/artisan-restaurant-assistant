@@ -1,3 +1,20 @@
+"""
+main.py
+
+FastAPI application initialization and configuration.
+Sets up the main application with all required middleware and routers.
+
+Features:
+- CORS configuration
+- Router registration
+- Database initialization
+- Environment configuration
+- API documentation setup
+- Error handlers
+- Security middleware
+
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
