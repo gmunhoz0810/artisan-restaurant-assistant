@@ -66,7 +66,7 @@ class ChatService:
                                 "sort_by": {
                                     "type": "string",
                                     "description": "How to sort search results (always use best_match, unless the user explicitly asks to sort by distance/rating/review_count, like: give me the 3 closes restaurants to my address here, but if they say give me the 3 best restaurants, always use best_match).",
-                                    "enum": ["best_match", "rating", "review_count", "distance"]
+                                    "enum": ["best_match", "review_count", "distance"]
                                 }
                             },
                             "required": ["term", "k"]
