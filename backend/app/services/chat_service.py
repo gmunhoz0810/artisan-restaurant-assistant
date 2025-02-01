@@ -46,6 +46,7 @@ class ChatService:
                 Guidelines for restaurant searches:
                 - Use between 1-5 results (k parameter) depending on how many restaurants you assume the user wants to see.
                 - Always include relevant search parameters like cuisine, price range, etc.
+                - Important! Be mindful that you will send this query to Yelp's search bar, do not just input anything there like 'romantic restaurant' if the user asked for a great date place. Instead use your own judgement to decide what type of restaurants would be good for dates, and search that there instead, like 'fancy italian', for example. Usually you want one or 2 adjectives and a cuisine type like style search queries.
                 - Location can be specified by city or address
                 
                 Remember to:
@@ -67,7 +68,7 @@ class ChatService:
                                 },
                                 "location": {
                                     "type": "string",
-                                    "description": "Location to search in (city, address, etc) - Cannot be just a country name, needs to be a city or address"
+                                    "description": "Location to search in (city, address, etc) - Cannot be just a country name, needs to be a city or address. For best results, use 'Atlanta, GA' format for US cities and 'São Paulo, Brazil' type format for international. City and State vs City and Country. Use the exact spellings of the city and country name with the accents."
                                 },
                                 "price": {
                                     "type": "string",
