@@ -8,3 +8,4 @@ httpx
 pydantic
 pytest
 pytest-asyncio
+requests

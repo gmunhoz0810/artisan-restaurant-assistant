@@ -72,15 +72,6 @@ A modern, full-stack restaurant discovery assistant powered by AI. Built with Re
 - Google OAuth credentials
 - Yelp API key
 
-### Environment Setup
-
-Create a `.env` file in the backend directory with:
-```
-OPENAI_API_KEY=your_openai_api_key
-GOOGLE_CLIENT_ID=your_google_client_id
-YELP_API_KEY=your_yelp_api_key
-```
-
 ### Installation
 
 1. Clone the repository:
@@ -89,28 +80,45 @@ git clone https://github.com/yourusername/restaurant-assistant.git
 cd restaurant-assistant
 ```
 
-2. Setup Backend:
+2. Create and Activate New Virtual Env
+```bash
+python3.12 -m venv venv
+
+source venv/bin/activate  # On Unix/MacOS
+# or
+.\venv\Scripts\activate  # On Windows
+```
+
+3. Setup Backend:
 ```bash
 cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload
 ```
 
-3. Create your .env file in the backend directory:
+4. Create your .env file in the backend directory:
 ```bash
 # backend/.env
 touch .env
 ```
 
-4. Add API keys inside .env file:
+5. Add API keys inside .env file:
 ```bash
 OPENAI_API_KEY=your_openai_key
 GOOGLE_CLIENT_ID=your_google_client_id
 YELP_API_KEY=your_yelp_api_key
 ```
 
-5. In a new termial - Setup Frontend:
+6. Start Backend Server
 ```bash
+uvicorn app.main:app --reload
+```
+
+7. In a new termial - Setup Frontend:
+```bash
+source venv/bin/activate  # On Unix/MacOS
+# or
+.\venv\Scripts\activate  # On Windows
+
 cd frontend
 npm install
 npm run dev
